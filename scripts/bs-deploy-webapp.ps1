@@ -1,14 +1,20 @@
 param(
-  [Parameter(Mandatory = $true)]
-  [string]$ResourceGroup = "rg-byutesift",
+  [string]$ResourceGroup = "rg-bytesift",
   [string]$Location = "swedencentral",
-  [Parameter(Mandatory = $true)]
-  [string]$StorageAccount,
+  [string]$StorageAccount = "stbytesift",
   [switch]$SkipBuild
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot = Split-Path -Parent $scriptDir
+$currentDir = (Get-Location).Path
+
+if ([System.IO.Path]::GetFullPath($currentDir) -ne [System.IO.Path]::GetFullPath($projectRoot)) {
+  throw "Run this script from project root: $projectRoot (current: $currentDir)"
+}
 
 if (-not $SkipBuild) {
   Write-Host "Installing dependencies and building web app..."

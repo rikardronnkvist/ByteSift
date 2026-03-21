@@ -145,7 +145,7 @@ Requirements:
 Deploy to Azure Storage static website:
 
 ```powershell
-pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swedencentral" -StorageAccount "bytesiftstatic123"
+pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swedencentral" -StorageAccount "stbytesift"
 ```
 
 The script will:

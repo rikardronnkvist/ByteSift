@@ -488,7 +488,11 @@ function App() {
       <header className="hero">
         <div className="hero-content">
 
-          <h1>Find large and stale data before your disk does.</h1>
+          <h1>
+            Sift bytes. Filter junk.
+            <br />
+            Reclaim space. Keep the good.
+          </h1>
           <p className="subtitle">
             Load a JSON scan report, explore the tree by size and age, and export a focused
             cleanup plan for archive or deletion scripts.

@@ -1,0 +1,37 @@
+param(
+  [Parameter(Mandatory = $true)]
+  [string]$ResourceGroup = "rg-byutesift",
+  [string]$Location = "swedencentral",
+  [Parameter(Mandatory = $true)]
+  [string]$StorageAccount,
+  [switch]$SkipBuild
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+if (-not $SkipBuild) {
+  Write-Host "Installing dependencies and building web app..."
+  npm ci
+  npm run build
+}
+
+$distPath = Join-Path -Path (Get-Location).Path -ChildPath "dist"
+if (-not (Test-Path -LiteralPath $distPath)) {
+  throw "dist folder not found. Run npm run build first."
+}
+
+Write-Host "Creating resource group and storage account..."
+az group create --name $ResourceGroup --location $Location | Out-Null
+az storage account create --name $StorageAccount --resource-group $ResourceGroup --location $Location --sku Standard_LRS --kind StorageV2 | Out-Null
+
+Write-Host "Enabling static website hosting..."
+az storage blob service-properties update --account-name $StorageAccount --static-website --index-document index.html --404-document index.html | Out-Null
+
+$key = az storage account keys list --resource-group $ResourceGroup --account-name $StorageAccount --query "[0].value" -o tsv
+
+Write-Host "Uploading built files to Azure Storage static website..."
+az storage blob upload-batch --destination '$web' --source $distPath --account-name $StorageAccount --account-key $key --overwrite | Out-Null
+
+$endpoint = az storage account show --name $StorageAccount --resource-group $ResourceGroup --query "primaryEndpoints.web" -o tsv
+Write-Host "Deployment finished: $endpoint"

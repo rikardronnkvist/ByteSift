@@ -1,0 +1,273 @@
+.app-shell {
+  width: min(1200px, 100% - 2rem);
+  margin: 2rem auto;
+  display: grid;
+  gap: 1rem;
+}
+
+.hero {
+  background:
+    radial-gradient(circle at top left, rgba(255, 120, 90, 0.22), transparent 45%),
+    linear-gradient(160deg, rgba(7, 40, 66, 0.95), rgba(15, 26, 48, 0.95));
+  color: var(--text-on-dark);
+  border-radius: 1rem;
+  border: 1px solid var(--line-strong);
+  padding: clamp(1rem, 1rem + 2vw, 2.2rem);
+  box-shadow: 0 25px 50px rgba(6, 12, 24, 0.28);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.12rem;
+  font-size: 0.76rem;
+  color: rgba(242, 231, 210, 0.85);
+}
+
+h1 {
+  margin: 0.4rem 0 0.8rem;
+  max-width: 20ch;
+}
+
+.subtitle {
+  max-width: 65ch;
+  color: rgba(242, 231, 210, 0.9);
+}
+
+.hero-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.load-meta {
+  margin-top: 0.7rem;
+  color: rgba(242, 231, 210, 0.88);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.85rem;
+}
+
+.error {
+  margin-top: 0.7rem;
+  color: #ffd4bf;
+  font-weight: 700;
+}
+
+.controls {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.controls label {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04rem;
+}
+
+.control-label-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.control-label-marker {
+  display: inline-block;
+  width: 0.58rem;
+  height: 0.58rem;
+  border-radius: 2px;
+}
+
+.control-label-marker-large {
+  background: #3033cf;
+}
+
+.control-label-marker-stale {
+  background: #cf5b30;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.summary-cards {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.summary-cards article {
+  padding: 1rem;
+  border-radius: 0.9rem;
+  background: var(--surface-muted);
+  border: 1px solid var(--line);
+}
+
+.summary-cards h3 {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04rem;
+  font-size: 0.82rem;
+}
+
+.summary-cards p {
+  margin: 0.45rem 0 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.tree-panel {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.tree-header,
+.tree-row {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: 20px 3fr 0.95fr 1.15fr 1.15fr 1.15fr 0.7fr;
+  align-items: center;
+}
+
+.tree-header {
+  background: #13263f;
+  color: var(--text-on-dark);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04rem;
+  font-weight: 700;
+  padding: 0.8rem 1rem;
+}
+
+.sort-header {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+  padding: 0;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.sort-header:hover {
+  background: transparent;
+  opacity: 0.88;
+}
+
+.tree-body {
+  max-height: 62vh;
+  overflow: auto;
+}
+
+.tree-row {
+  padding: 0.62rem 1rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+
+.tree-row:last-child {
+  border-bottom: none;
+}
+
+.marker-header {
+  width: 27px;
+}
+
+.marker-stack {
+  display: grid;
+  grid-template-columns: 12px 12px;
+  gap: 3px;
+  align-self: center;
+  justify-self: center;
+}
+
+.marker-cell {
+  display: block;
+  width: 12px;
+  height: 12px;
+  background: transparent;
+}
+
+.marker-large.active {
+  background: #3033cf;
+}
+
+.marker-stale.active {
+  background: #cf5b30;
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.node-checkbox.partial {
+  accent-color: #b7b2a8;
+}
+
+.name-text {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.toggle,
+.toggle-placeholder {
+  width: 1.2rem;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.toggle {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.empty {
+  margin: 0;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .tree-header {
+    display: none;
+  }
+
+  .tree-row {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+    padding: 0.75rem;
+  }
+
+  .marker-stack {
+    display: none;
+  }
+
+  .tree-row > span {
+    margin-left: 1.7rem;
+  }
+}

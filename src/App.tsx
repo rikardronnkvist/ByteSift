@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
 import './App.css'
+import bytesiftLogo from './assets/bytesift.png'
 
 type NodeType = 'file' | 'directory'
 
@@ -485,26 +486,31 @@ function App() {
   return (
     <div className="app-shell">
       <header className="hero">
-        <p className="eyebrow">ByteSift</p>
-        <h1>Find large and stale data before your disk does.</h1>
-        <p className="subtitle">
-          Load a JSON scan report, explore the tree by size and age, and export a focused
-          cleanup plan for archive or deletion scripts.
-        </p>
-        <div className="hero-actions">
-          <button type="button" onClick={() => fileInputRef.current?.click()}>
-            Load JSON
-          </button>
-          <button type="button" onClick={handleLoadSample} className="secondary">
-            Load Sample
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="application/json"
-            onChange={handleFileUpload}
-            hidden
-          />
+        <div className="hero-content">
+
+          <h1>Find large and stale data before your disk does.</h1>
+          <p className="subtitle">
+            Load a JSON scan report, explore the tree by size and age, and export a focused
+            cleanup plan for archive or deletion scripts.
+          </p>
+          <div className="hero-actions">
+            <button type="button" onClick={() => fileInputRef.current?.click()}>
+              Load JSON
+            </button>
+            <button type="button" onClick={handleLoadSample} className="secondary">
+              Load Sample
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="application/json"
+              onChange={handleFileUpload}
+              hidden
+            />
+          </div>
+        </div>
+        <div className="hero-logo-wrap" aria-hidden="true">
+          <img src={bytesiftLogo} alt="" className="hero-logo" />
         </div>
         {scanInput ? (
           <p className="load-meta">

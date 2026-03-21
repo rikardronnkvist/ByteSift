@@ -1,19 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
 :root {
-  --bg: #f2e9d8;
-  --surface: rgba(255, 253, 250, 0.84);
-  --surface-muted: rgba(250, 246, 237, 0.94);
-  --line: #ccbea8;
-  --line-strong: #d8c1a3;
-  --text: #2d2b30;
-  --text-muted: #6d6255;
-  --text-strong: #19181b;
-  --text-on-dark: #f2e7d2;
-  --btn: #cf5b30;
-  --btn-hover: #af4f2d;
-  --btn-secondary: #eadfcb;
-  --btn-secondary-hover: #e0d2ba;
+  --bg: #ffffff;
+  --surface: #f8f8f8;
+  --surface-muted: #f4f4f5;
+  --line: #d4d4d8;
+  --line-strong: #a1a1aa;
+  --text: #18181b;
+  --text-muted: #52525b;
+  --text-strong: #18181b;
+  --text-on-dark: #fafafa;
+  --btn: #71717a;
+  --btn-hover: #57534e;
+  --btn-secondary: #e4e4e7;
+  --btn-secondary-hover: #d4d4d8;
 
   font-family: 'Space Grotesk', sans-serif;
   line-height: 1.45;
@@ -32,8 +32,8 @@ body {
   margin: 0;
   min-height: 100svh;
   background:
-    radial-gradient(circle at 8% 8%, rgba(255, 168, 111, 0.35), transparent 20%),
-    radial-gradient(circle at 88% 16%, rgba(86, 140, 170, 0.22), transparent 18%),
+    radial-gradient(circle at 8% 8%, rgba(113, 113, 122, 0.14), transparent 22%),
+    radial-gradient(circle at 88% 16%, rgba(87, 83, 78, 0.14), transparent 20%),
     var(--bg);
 }
 
@@ -92,14 +92,14 @@ select {
   border: 1px solid var(--line);
   border-radius: 0.55rem;
   padding: 0.52rem 0.58rem;
-  background: #fffaf2;
+  background: #ffffff;
   color: var(--text-strong);
 }
 
 input:focus,
 select:focus,
 button:focus-visible {
-  outline: 2px solid #3f7aa0;
+  outline: 2px solid #71717a;
   outline-offset: 2px;
 }
 

@@ -7,20 +7,41 @@
 
 .hero {
   background:
-    radial-gradient(circle at top left, rgba(255, 120, 90, 0.22), transparent 45%),
-    linear-gradient(160deg, rgba(7, 40, 66, 0.95), rgba(15, 26, 48, 0.95));
+    radial-gradient(circle at top left, rgba(244, 244, 245, 0.16), transparent 42%),
+    linear-gradient(160deg, #71717a, #57534e);
   color: var(--text-on-dark);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 1.5rem;
+  row-gap: 0.9rem;
+  align-items: center;
   border-radius: 1rem;
   border: 1px solid var(--line-strong);
   padding: clamp(1rem, 1rem + 2vw, 2.2rem);
   box-shadow: 0 25px 50px rgba(6, 12, 24, 0.28);
 }
 
+.hero-content {
+  min-width: 0;
+}
+
+
+.hero-logo-wrap {
+  justify-self: end;
+  align-self: center;
+}
+
+.hero-logo {
+  width: clamp(8rem, 6.5rem + 10vw, 13rem);
+  height: clamp(8rem, 6.5rem + 10vw, 13rem);
+  object-fit: contain;
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: 0.12rem;
   font-size: 0.76rem;
-  color: rgba(242, 231, 210, 0.85);
+  color: rgba(250, 250, 250, 0.88);
 }
 
 h1 {
@@ -30,7 +51,7 @@ h1 {
 
 .subtitle {
   max-width: 65ch;
-  color: rgba(242, 231, 210, 0.9);
+  color: rgba(250, 250, 250, 0.92);
 }
 
 .hero-actions {
@@ -41,15 +62,17 @@ h1 {
 }
 
 .load-meta {
+  grid-column: 1 / -1;
   margin-top: 0.7rem;
-  color: rgba(242, 231, 210, 0.88);
+  color: rgba(250, 250, 250, 0.9);
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.85rem;
 }
 
 .error {
+  grid-column: 1 / -1;
   margin-top: 0.7rem;
-  color: #ffd4bf;
+  color: #fef2f2;
   font-weight: 700;
 }
 
@@ -143,7 +166,7 @@ h1 {
 }
 
 .tree-header {
-  background: #13263f;
+  background: #71717a;
   color: var(--text-on-dark);
   font-size: 0.8rem;
   text-transform: uppercase;
@@ -253,6 +276,14 @@ h1 {
 }
 
 @media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-logo-wrap {
+    justify-self: start;
+  }
+
   .tree-header {
     display: none;
   }

@@ -26,10 +26,9 @@ type RecommendationItem = {
   type: NodeType
   sizeBytes: number
   modifiedAt: string
-  CreationTime?: string
-  LastAccessTime?: string
-  LastWriteTime?: string
-  reasons: string[]
+  CreationTime: string
+  LastAccessTime: string
+  LastWriteTime: string
 }
 
 type Row = {
@@ -351,19 +350,10 @@ function App() {
       return []
     }
 
-    const stale = staleDays
-    const minBytes = minSizeMb * MB
     const selected: RecommendationItem[] = []
 
     const pushRecommendation = (node: ScanNode) => {
-      const reasons: string[] = []
       const lastWriteTime = getNodeLastWriteTime(node)
-      if (node.sizeBytes >= minBytes) {
-        reasons.push('large')
-      }
-      if (ageInDays(lastWriteTime) >= stale) {
-        reasons.push('stale')
-      }
       selected.push({
         path: node.path,
         type: node.type,
@@ -372,7 +362,6 @@ function App() {
         CreationTime: getNodeCreationTime(node),
         LastAccessTime: getNodeLastAccessTime(node),
         LastWriteTime: lastWriteTime,
-        reasons,
       })
     }
 
@@ -396,7 +385,7 @@ function App() {
 
     collectForExport(sortedRoot)
     return selected
-  }, [sortedRoot, selectionStateMap, staleDays, minSizeMb])
+  }, [sortedRoot, selectionStateMap])
 
   const exportSelection = () => {
     if (!scanInput || recommendedItems.length === 0) {

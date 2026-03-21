@@ -13,11 +13,10 @@ It includes:
 
 - Interactive file tree with directory expansion/collapse
 - Human-readable sizes (KB/MB/GB/TB)
-- Sort by name, size, or modified date
-- Filter by stale age and minimum size
-- Search by path substring
+- Sort by name, size, created date, accessed date, or last-write date
+- Configurable thresholds for stale age and minimum size
 - Highlight stale and large files/directories
-- Export selected recommendations as output.json
+- Export selected items as output.json
 
 ## Project Structure
 
@@ -85,8 +84,10 @@ The web app exports selected recommendations as output.json:
       "path": "/path/to/root/archive/old.tar",
       "type": "file",
       "sizeBytes": 542155448,
+      "CreationTime": "2022-05-01T08:00:00Z",
+      "LastAccessTime": "2022-05-03T11:30:00Z",
+      "LastWriteTime": "2022-05-05T09:10:00Z",
       "modifiedAt": "2022-05-05T09:10:00Z",
-      "reasons": ["large", "stale"]
     }
   ]
 }
@@ -144,7 +145,7 @@ Requirements:
 Deploy to Azure Storage static website:
 
 ```powershell
-pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "westeurope" -StorageAccount "bytesiftstatic123"
+pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swedencentral" -StorageAccount "bytesiftstatic123"
 ```
 
 The script will:

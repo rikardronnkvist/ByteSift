@@ -1,5 +1,7 @@
 # ByteSift
 
+[![CI](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml/badge.svg)](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml)
+
 ByteSift is an open-source toolkit for finding large and stale files before they become storage debt.
 
 It includes:

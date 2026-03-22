@@ -23,7 +23,7 @@ It includes:
 - `.github/workflows/ci.yml`: CI pipeline
 - `.github/workflows/deploy-azure.yml`: Azure pipeline
 - `src/`: ByteSift web app (React/Vite)
-- `sample-input.json`: realistic sample scan data (100+ nodes)
+- `public/sample-input.json`: realistic sample scan data (100+ nodes)
 - `scripts/bs-scanner.ps1`: PowerShell scanner
 - `scripts/bs-archive.ps1`: PowerShell archive/delete executor
 - `scripts/bs-deploy-webapp.ps1`: Azure deployment helper

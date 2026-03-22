@@ -410,7 +410,7 @@ function App() {
       const parsed = (await response.json()) as unknown
       loadInput(parsed)
     } catch {
-      setError('Unable to load sample-input.json from project root.')
+      setError('Unable to load sample-input.json from /public.')
     }
   }
 

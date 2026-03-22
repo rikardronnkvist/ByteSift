@@ -7,16 +7,13 @@ It includes:
 - PowerShell scanner script that generates input JSON
 - PowerShell archive/delete script that processes output JSON
 - Azure static web app deployment script (Storage Static Website)
-- GitHub Actions CI workflow
 
 ## Features
 
-- Interactive file tree with directory expansion/collapse
-- Human-readable sizes (KB/MB/GB/TB)
+- Interactive file tree
 - Sort by name, size, created date, accessed date, or last-write date
 - Configurable thresholds for stale age and minimum size
 - Highlight stale and large files/directories
-- Export selected items as json
 
 ## Workflow
 
@@ -71,37 +68,23 @@ pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root" -ExcludeFolder "node_modules
 
 Use json exported by the web app.
 
-### PowerShell archive
+### Archive files
 
 ```powershell
 pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -ArchiveRoot "./bytesift-archive"
 ```
 
-If an archive destination already exists, the script fails unless you pass `-Force`.
+### Delete files, create a report and show verbose messages
 
 ```powershell
-pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -ArchiveRoot "./bytesift-archive" -Force
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete -Report "./bytesift-report.json" -Verbose
 ```
 
-### PowerShell delete
-
-```powershell
-pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete
-```
-
-Write a JSON report only when needed:
-
-```powershell
-pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete -Report "./bytesift-report.json"
-```
-
-Dry-run preview is available in archive script:
+### Dry-run preview is available in archive script:
 
 ```powershell
 pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -DryRun
 ```
-
-Use `-Verbose` to print each archive/delete operation as it runs.
 
 ## Deploy Web App To Azure
 
@@ -114,13 +97,6 @@ Deploy to Azure Storage static website:
 ```powershell
 pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swedencentral" -StorageAccount "stbytesift"
 ```
-
-The script will:
-- Run `npm ci` and `npm run build` (unless `-SkipBuild` is set)
-- Create/update resource group and storage account
-- Enable static website hosting
-- Upload `dist/` contents to `$web`
-- Print the public endpoint URL
 
 ## Screenshot
 

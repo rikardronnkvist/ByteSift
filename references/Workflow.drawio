@@ -1,0 +1,79 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.5.2 Chrome/142.0.7444.265 Electron/39.6.1 Safari/537.36" version="29.5.2">
+  <diagram id="C5RBs43oDa-KdzZeNtuy" name="Page-1">
+    <mxGraphModel dx="2776" dy="1188" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="WIyWlLk6GJQsqaUBKTNV-0" />
+        <mxCell id="WIyWlLk6GJQsqaUBKTNV-1" parent="WIyWlLk6GJQsqaUBKTNV-0" />
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-22" parent="WIyWlLk6GJQsqaUBKTNV-1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;align=left;verticalAlign=top;fontFamily=Verdana;fontStyle=0" value="&amp;nbsp;ByteSift" vertex="1">
+          <mxGeometry height="170" width="760" x="220" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-2" parent="WIyWlLk6GJQsqaUBKTNV-1" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.json" value="bytesift.json" vertex="1">
+          <mxGeometry height="90" width="83.11" x="401" y="171" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-3" parent="WIyWlLk6GJQsqaUBKTNV-1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.powershell;" value="bs-scanner.ps1" vertex="1">
+          <mxGeometry height="90" width="90" x="241" y="171" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-5" parent="WIyWlLk6GJQsqaUBKTNV-1" style="dashed=0;outlineConnect=0;html=1;align=center;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;shape=mxgraph.weblogos.json" value="output.json" vertex="1">
+          <mxGeometry height="90" width="83.11" x="721" y="171" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-6" parent="WIyWlLk6GJQsqaUBKTNV-1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.powershell;" value="bs-archive.ps1" vertex="1">
+          <mxGeometry height="90" width="90" x="871" y="171" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-8" parent="WIyWlLk6GJQsqaUBKTNV-1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.folder_shared;" value="Root Folder" vertex="1">
+          <mxGeometry height="90" width="93.46" x="80" y="171" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-9" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="337" y="216" as="sourcePoint" />
+            <mxPoint x="397" y="216" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-10" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="489" y="215.86" as="sourcePoint" />
+            <mxPoint x="549" y="215.86" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-11" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="657" y="215.86" as="sourcePoint" />
+            <mxPoint x="717" y="215.86" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-12" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="808" y="215.86" as="sourcePoint" />
+            <mxPoint x="868" y="215.86" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-15" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="173.45999999999998" y="220" as="sourcePoint" />
+            <mxPoint x="233.45999999999998" y="220" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-18" parent="WIyWlLk6GJQsqaUBKTNV-1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.folder_shared;" value="Root Folder" vertex="1">
+          <mxGeometry height="90" width="93.46" x="1050" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-19" parent="WIyWlLk6GJQsqaUBKTNV-1" style="sketch=0;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.concepts.folder_public;" value="Archive Folder" vertex="1">
+          <mxGeometry height="90" width="100.38" x="1050" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-20" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="970" y="215.71" as="sourcePoint" />
+            <mxPoint x="1030" y="170" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-21" edge="1" parent="WIyWlLk6GJQsqaUBKTNV-1" style="endArrow=classic;html=1;rounded=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="1090" y="240" as="sourcePoint" />
+            <mxPoint x="1090" y="270" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="-alaQ0Mtnu-e91Nndfmi-24" parent="WIyWlLk6GJQsqaUBKTNV-1" style="sketch=0;aspect=fixed;pointerEvents=1;shadow=0;dashed=0;html=1;strokeColor=none;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;align=center;fillColor=#333333;shape=mxgraph.mscae.enterprise.filter" value="Web Front" vertex="1">
+          <mxGeometry height="89" width="98.89" x="550.56" y="172" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

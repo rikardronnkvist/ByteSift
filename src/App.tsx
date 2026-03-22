@@ -38,6 +38,7 @@ type Row = {
 }
 
 type SelectionState = 'none' | 'partial' | 'all'
+type SortColumn = 'size' | 'name' | 'created' | 'accessed' | 'written' | 'age'
 
 const MB = 1024 * 1024
 const MAX_STALE_DAYS = 365
@@ -270,6 +271,27 @@ const getMaxDescendantSizeBytes = (node: ScanNode): number => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+const validateRequiredNodeFields = (candidate: Partial<ScanNode>): boolean =>
+  typeof candidate.name === 'string' &&
+  typeof candidate.path === 'string' &&
+  (candidate.type === 'file' || candidate.type === 'directory') &&
+  typeof candidate.sizeBytes === 'number' &&
+  Number.isFinite(candidate.sizeBytes) &&
+  typeof candidate.modifiedAt === 'string'
+
+const validateOptionalTimestamps = (candidate: Partial<ScanNode>): boolean => {
+  if (candidate.CreationTime !== undefined && typeof candidate.CreationTime !== 'string') {
+    return false
+  }
+  if (candidate.LastAccessTime !== undefined && typeof candidate.LastAccessTime !== 'string') {
+    return false
+  }
+  if (candidate.LastWriteTime !== undefined && typeof candidate.LastWriteTime !== 'string') {
+    return false
+  }
+  return true
+}
+
 const validateNodeTree = (node: unknown): node is ScanNode => {
   if (!isRecord(node)) {
     return false
@@ -294,33 +316,7 @@ const validateNodeTree = (node: unknown): node is ScanNode => {
     }
 
     const candidate = current.node as Partial<ScanNode>
-    if (
-      typeof candidate.name !== 'string' ||
-      typeof candidate.path !== 'string' ||
-      (candidate.type !== 'file' && candidate.type !== 'directory') ||
-      typeof candidate.sizeBytes !== 'number' ||
-      !Number.isFinite(candidate.sizeBytes) ||
-      typeof candidate.modifiedAt !== 'string'
-    ) {
-      return false
-    }
-
-    if (
-      candidate.CreationTime !== undefined &&
-      typeof candidate.CreationTime !== 'string'
-    ) {
-      return false
-    }
-    if (
-      candidate.LastAccessTime !== undefined &&
-      typeof candidate.LastAccessTime !== 'string'
-    ) {
-      return false
-    }
-    if (
-      candidate.LastWriteTime !== undefined &&
-      typeof candidate.LastWriteTime !== 'string'
-    ) {
+    if (!validateRequiredNodeFields(candidate) || !validateOptionalTimestamps(candidate)) {
       return false
     }
 
@@ -358,11 +354,7 @@ function App() {
   const [error, setError] = useState<string>('')
   const [staleDays, setStaleDays] = useState(180)
   const [minSizeMb, setMinSizeMb] = useState(1024)
-  const [sortBy, setSortBy] = useState<
-    'size' | 'name' | 'created' | 'accessed' | 'written' | 'age'
-  >(
-    'size',
-  )
+  const [sortBy, setSortBy] = useState<SortColumn>('size')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set<string>())
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set<string>())
@@ -373,7 +365,7 @@ function App() {
       setError('Invalid JSON format or file is too complex to process safely.')
       return
     }
-    const typed = payload as ScanInput
+    const typed = payload
     const { maxAgeDays } = getMaxNodeMetrics(typed.node)
     const maxSizeBytes = getMaxDescendantSizeBytes(typed.node)
     const suggestedMinSizeMb = roundDownToLeadingMagnitude((maxSizeBytes / MB) * 0.75)
@@ -627,9 +619,7 @@ function App() {
     })
   }
 
-  const handleSortClick = (
-    column: 'name' | 'size' | 'created' | 'accessed' | 'written' | 'age',
-  ) => {
+  const handleSortClick = (column: SortColumn) => {
     if (sortBy === column) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
       return
@@ -639,9 +629,7 @@ function App() {
     setSortDirection(column === 'name' ? 'asc' : 'desc')
   }
 
-  const getSortMarker = (
-    column: 'name' | 'size' | 'created' | 'accessed' | 'written' | 'age',
-  ) => {
+  const getSortMarker = (column: SortColumn) => {
     if (sortBy !== column) {
       return '↕'
     }
@@ -701,7 +689,7 @@ function App() {
       <section className="controls">
         <label>
           <span className="control-label-text">
-            Min Size (MB)
+            {'Min Size (MB)'}
             <span className="control-label-marker control-label-marker-large" aria-hidden="true" />
           </span>
           <input
@@ -716,7 +704,7 @@ function App() {
         </label>
         <label>
           <span className="control-label-text">
-            Stale (Days)
+            {'Stale (Days)'}
             <span className="control-label-marker control-label-marker-stale" aria-hidden="true" />
           </span>
           <input

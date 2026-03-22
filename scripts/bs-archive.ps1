@@ -5,7 +5,7 @@ Processes a ByteSift export by archiving or deleting the listed paths.
 .DESCRIPTION
 Reads an exported ByteSift JSON file (`output.json` format) and performs one of two actions
 for each item in `items`: move to an archive root (`-Archive`) or remove (`-Delete`).
-The script writes a JSON report with per-item status and aggregate metrics.
+If `-Report` is provided, the script also writes a JSON report with per-item status and aggregate metrics.
 
 .PARAMETER InputPath
 Path to the ByteSift export JSON file.
@@ -26,8 +26,8 @@ If omitted and a destination exists, the operation fails.
 Archive mode only. Destination root folder where archived items are moved.
 
 .PARAMETER Report
-Path for the generated JSON report. If omitted, a timestamped report file is created
-in the current working directory.
+Optional path for a generated JSON report.
+If omitted, no report file is written.
 
 .PARAMETER DryRun
 Simulates operations without moving or deleting files.
@@ -41,6 +41,11 @@ Archives all items listed in `output.json`.
 pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete -DryRun
 
 Shows what would be deleted without modifying the filesystem.
+
+.EXAMPLE
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete -Report "./bytesift-report.json"
+
+Deletes the selected items and writes a JSON report to the specified path.
 
 .NOTES
 Use `-Verbose` to print each archive/delete action as it is processed.
@@ -74,10 +79,14 @@ $currentFolder = (Get-Location).Path
 $Mode = if ($PSCmdlet.ParameterSetName -eq "Archive") { "archive" } else { "delete" }
 
 if (-not $Report) {
-  $Report = Join-Path -Path $currentFolder -ChildPath "bytesift-report-$((Get-Date).ToString('yyyyMMdd-HHmm')).json"
+  $reportPath = $null
 }
 elseif (-not [System.IO.Path]::IsPathRooted($Report)) {
   $Report = Join-Path -Path $currentFolder -ChildPath $Report
+}
+
+if (-not [string]::IsNullOrWhiteSpace($Report)) {
+  $reportPath = [System.IO.Path]::GetFullPath($Report)
 }
 
 function Resolve-ArchiveDestination {
@@ -325,14 +334,15 @@ $reportObject = [ordered]@{
   results = $results
 }
 
-$reportPath = [System.IO.Path]::GetFullPath($Report)
-$reportDir = Split-Path -Path $reportPath -Parent
-if (-not (Test-Path -LiteralPath $reportDir)) {
-  New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
-}
+if ($reportPath) {
+  $reportDir = Split-Path -Path $reportPath -Parent
+  if (-not (Test-Path -LiteralPath $reportDir)) {
+    New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+  }
 
-$reportObject | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $reportPath -Encoding UTF8
-Write-Host "Wrote report: $reportPath"
+  $reportObject | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $reportPath -Encoding UTF8
+  Write-Host "Wrote report: $reportPath"
+}
 
 $archivedCount = @(
   $results | Where-Object { $_.status -eq "archived" }
@@ -361,7 +371,9 @@ Write-Host "  Failed items: $failedCount"
 Write-Host "  Total processed files: $processedFileCount"
 Write-Host "  Total processed folders: $processedFolderCount"
 Write-Host "  Total processed size: $(Format-Bytes -Bytes $processedBytes) ($processedBytes bytes)"
-Write-Host "Report: $reportPath"
+if ($reportPath) {
+  Write-Host "  Report: $reportPath"
+}
 
 if ($Mode -eq "archive") {
   $overwriteConflicts = @(
@@ -371,6 +383,7 @@ if ($Mode -eq "archive") {
   )
 
   if ($overwriteConflicts.Count -gt 0) {
-    throw "Archive aborted because one or more targets already exist. Re-run with -Force to overwrite them. See report: $reportPath"
+    $reportSuffix = if ($reportPath) { " See report: $reportPath" } else { "" }
+    throw "Archive aborted because one or more targets already exist. Re-run with -Force to overwrite them.$reportSuffix"
   }
 }

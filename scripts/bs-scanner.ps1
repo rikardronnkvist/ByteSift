@@ -91,6 +91,18 @@ function Get-Node {
     [string[]]$ExcludePatterns
   )
 
+  if ($Depth -eq 1) {
+    $script:ProcessedRootItems += 1
+    $scanPercent = if ($script:TotalRootItems -gt 0) {
+      [int](($script:ProcessedRootItems / $script:TotalRootItems) * 100)
+    }
+    else {
+      100
+    }
+
+    Write-Progress -Id 1 -Activity "Scanning filesystem" -Status "[$script:ProcessedRootItems/$script:TotalRootItems] $($Item.FullName)" -PercentComplete $scanPercent
+  }
+
   $node = [ordered]@{
     name = $Item.Name
     path = $Item.FullName
@@ -106,7 +118,7 @@ function Get-Node {
     $children = @()
     $total = 0
     if ($Depth -eq 1) {
-        Write-Host "  $($Item.Name)"
+        Write-Verbose "Scanning: $($Item.Name)"
     }
 
     try {
@@ -118,7 +130,7 @@ function Get-Node {
 
     foreach ($entry in $entries) {
       if ($entry.PSIsContainer -and (Test-IsExcludedDirectory -ItemPath $entry.FullName -ItemName $entry.Name -RootPath $RootPath -Patterns $ExcludePatterns)) {
-        Write-Verbose "Skipping excluded folder: $($entry.FullName)"
+        Write-Verbose "Skipping: $($entry.FullName)"
         continue
       }
 
@@ -147,6 +159,30 @@ $resolvedRoot = (Resolve-Path -Path $Root).Path
 Write-Host "Scanning root: $resolvedRoot"
 
 $rootItem = Get-Item -LiteralPath $resolvedRoot
+$rootEntries = @()
+
+if ($rootItem.PSIsContainer) {
+  try {
+    $rootEntries = @(
+      Get-ChildItem -LiteralPath $rootItem.FullName -Force -ErrorAction Stop |
+        Where-Object {
+          -not ($_.PSIsContainer -and (
+            Test-IsExcludedDirectory -ItemPath $_.FullName -ItemName $_.Name -RootPath $resolvedRoot -Patterns $ExcludeFolder
+          ))
+        }
+    )
+  }
+  catch {
+    $rootEntries = @()
+  }
+}
+
+$script:TotalRootItems = $rootEntries.Count
+$script:ProcessedRootItems = 0
+
+if ($script:TotalRootItems -gt 0) {
+  Write-Progress -Id 1 -Activity "Scanning filesystem" -Status "[0/$script:TotalRootItems] Starting" -PercentComplete 0
+}
 
 $report = [ordered]@{
   rootPath = $resolvedRoot
@@ -154,6 +190,8 @@ $report = [ordered]@{
   excludedFolders = @($ExcludeFolder | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
   node = Get-Node -Item $rootItem -Depth 0 -RootPath $resolvedRoot -ExcludePatterns $ExcludeFolder
 }
+
+Write-Progress -Id 1 -Activity "Scanning filesystem" -Completed
 
 if ([System.IO.Path]::IsPathRooted($Output)) {
   $outputFile = [System.IO.Path]::GetFullPath($Output)

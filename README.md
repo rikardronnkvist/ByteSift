@@ -78,6 +78,12 @@ pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -ArchiveRoot "./byte
 pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete
 ```
 
+Write a JSON report only when needed:
+
+```powershell
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete -Report "./bytesift-report.json"
+```
+
 Dry-run preview is available in archive script:
 
 ```powershell

@@ -20,7 +20,7 @@ It includes:
 
 ## Workflow
 
-![Workflow](./workflow.png?raw=true)
+![Workflow](./README-images/workflow.png?raw=true)
 
 - Target a folder with the `bs-scanner.ps1` script
 - Import JSON file to web front
@@ -122,9 +122,6 @@ The script will:
 - Upload `dist/` contents to `$web`
 - Print the public endpoint URL
 
-## CI
+## Screenshot
 
-GitHub Actions runs on push and pull requests:
-- `npm ci`
-- `npm run lint`
-- `npm run build`
+![Screenshot](./README-images/screenshot.png?raw=true)

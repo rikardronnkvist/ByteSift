@@ -1,6 +1,6 @@
 # ByteSift
 
-[![CI](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml/badge.svg)](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml)
+![Workflow Status](./workflow.png)
 
 ByteSift is an open-source toolkit for finding large and stale files before they become storage debt.
 
@@ -19,6 +19,17 @@ It includes:
 - Configurable thresholds for stale age and minimum size
 - Highlight stale and large files/directories
 - Export selected items as json
+
+## Workflow
+
+- Target a folder with the `bs-scanner.ps1` script
+- Import JSON file to web front
+- Mark stale and large files
+- Export JSON
+- Target exported JSON with `bs-archive.ps1`
+- Delete or archive files and folders
+
+[![CI](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml/badge.svg)](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml)
 
 ## Project Structure
 

@@ -50,6 +50,12 @@ npm run dev
 pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root"
 ```
 
+Exclude folders by name or wildcard path pattern:
+
+```powershell
+pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root" -ExcludeFolder "node_modules",".git","dist/*"
+```
+
 ## Archive/Delete Scripts
 
 Use json exported by the web app.
@@ -57,20 +63,28 @@ Use json exported by the web app.
 ### PowerShell archive
 
 ```powershell
-pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Mode archive -ArchiveRoot "./bytesift-archive"
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -ArchiveRoot "./bytesift-archive"
+```
+
+If an archive destination already exists, the script fails unless you pass `-Force`.
+
+```powershell
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -ArchiveRoot "./bytesift-archive" -Force
 ```
 
 ### PowerShell delete
 
 ```powershell
-pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Mode delete
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete
 ```
 
 Dry-run preview is available in archive script:
 
 ```powershell
-pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Mode archive -DryRun
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -DryRun
 ```
+
+Use `-Verbose` to print each archive/delete operation as it runs.
 
 ## Deploy Web App To Azure
 

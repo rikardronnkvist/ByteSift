@@ -1,14 +1,16 @@
+[CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]
   [string]$Root,
-  [string]$Output
+  [string]$Output,
+  [string[]]$ExcludeFolder = @()
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 if (-not $Output) {
-  $defaultName = "bytesift-$((Get-Date).ToString('yyMMdd')).json"
+  $defaultName = "bytesift-$((Get-Date).ToString('yyyyMMdd-HHmm')).json"
   $scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
   $Output = Join-Path -Path $scriptDir -ChildPath $defaultName
 }
@@ -18,10 +20,42 @@ function Convert-ToIsoUtc {
   return $Date.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 }
 
+function Test-IsExcludedDirectory {
+  param(
+    [string]$ItemPath,
+    [string]$ItemName,
+    [string]$RootPath,
+    [string[]]$Patterns
+  )
+
+  if (-not $Patterns -or $Patterns.Count -eq 0) {
+    return $false
+  }
+
+  $relativePath = $ItemPath
+  if ($ItemPath.StartsWith($RootPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $relativePath = $ItemPath.Substring($RootPath.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+  }
+
+  foreach ($pattern in $Patterns) {
+    if ([string]::IsNullOrWhiteSpace($pattern)) {
+      continue
+    }
+
+    if ($ItemName -like $pattern -or $ItemPath -like $pattern -or $relativePath -like $pattern) {
+      return $true
+    }
+  }
+
+  return $false
+}
+
 function Get-Node {
   param(
     [System.IO.FileSystemInfo]$Item,
-    [int]$Depth = 0
+    [int]$Depth = 0,
+    [string]$RootPath,
+    [string[]]$ExcludePatterns
   )
 
   $node = [ordered]@{
@@ -50,8 +84,13 @@ function Get-Node {
     }
 
     foreach ($entry in $entries) {
+      if ($entry.PSIsContainer -and (Test-IsExcludedDirectory -ItemPath $entry.FullName -ItemName $entry.Name -RootPath $RootPath -Patterns $ExcludePatterns)) {
+        Write-Verbose "Skipping excluded folder: $($entry.FullName)"
+        continue
+      }
+
       try {
-        $child = Get-Node -Item $entry -Depth ($Depth + 1)
+        $child = Get-Node -Item $entry -Depth ($Depth + 1) -RootPath $RootPath -ExcludePatterns $ExcludePatterns
         $children += $child
         $total += [int64]$child.sizeBytes
       }
@@ -79,7 +118,8 @@ $rootItem = Get-Item -LiteralPath $resolvedRoot
 $report = [ordered]@{
   rootPath = $resolvedRoot
   generatedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-  node = Get-Node -Item $rootItem -Depth 0
+  excludedFolders = @($ExcludeFolder | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+  node = Get-Node -Item $rootItem -Depth 0 -RootPath $resolvedRoot -ExcludePatterns $ExcludeFolder
 }
 
 if ([System.IO.Path]::IsPathRooted($Output)) {

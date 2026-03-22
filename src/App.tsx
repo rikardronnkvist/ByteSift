@@ -100,6 +100,34 @@ const getExportFileName = (): string => {
   return `output-${year}${month}${day}.json`
 }
 
+const truncateNodeName = (name: string, type: NodeType, maxLength = 50): string => {
+  if (name.length <= maxLength) {
+    return name
+  }
+
+  const ellipsis = '...'
+
+  if (type !== 'file') {
+    return `${name.slice(0, Math.max(0, maxLength - ellipsis.length))}${ellipsis}`
+  }
+
+  const lastDot = name.lastIndexOf('.')
+  const hasExtension = lastDot > 0 && lastDot < name.length - 1
+  if (!hasExtension) {
+    return `${name.slice(0, Math.max(0, maxLength - ellipsis.length))}${ellipsis}`
+  }
+
+  const extension = name.slice(lastDot)
+  const baseName = name.slice(0, lastDot)
+  const availableBaseLength = maxLength - extension.length - ellipsis.length
+
+  if (availableBaseLength <= 0) {
+    return `${name.slice(0, Math.max(0, maxLength - ellipsis.length))}${ellipsis}`
+  }
+
+  return `${baseName.slice(0, availableBaseLength)}${ellipsis}${extension}`
+}
+
 const flattenVisibleRows = (
   node: ScanNode,
   expandedPaths: Set<string>,
@@ -202,7 +230,9 @@ function App() {
   const [error, setError] = useState<string>('')
   const [staleDays, setStaleDays] = useState(180)
   const [minSizeMb, setMinSizeMb] = useState(1024)
-  const [sortBy, setSortBy] = useState<'size' | 'name' | 'created' | 'accessed' | 'written'>(
+    const [sortBy, setSortBy] = useState<
+      'size' | 'name' | 'created' | 'accessed' | 'written' | 'age'
+    >(
     'size',
   )
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -284,10 +314,12 @@ function App() {
           compare =
             new Date(getNodeLastAccessTime(a)).getTime() -
             new Date(getNodeLastAccessTime(b)).getTime()
-        } else {
+        } else if (sortBy === 'written') {
           compare =
             new Date(getNodeLastWriteTime(a)).getTime() -
             new Date(getNodeLastWriteTime(b)).getTime()
+        } else {
+          compare = ageInDays(getNodeLastWriteTime(a)) - ageInDays(getNodeLastWriteTime(b))
         }
         return sortDirection === 'asc' ? compare : -compare
       })
@@ -466,7 +498,9 @@ function App() {
     setExpandedPaths(new Set([sortedRoot.path]))
   }
 
-  const handleSortClick = (column: 'name' | 'size' | 'created' | 'accessed' | 'written') => {
+  const handleSortClick = (
+    column: 'name' | 'size' | 'created' | 'accessed' | 'written' | 'age',
+  ) => {
     if (sortBy === column) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
       return
@@ -476,7 +510,9 @@ function App() {
     setSortDirection(column === 'name' ? 'asc' : 'desc')
   }
 
-  const getSortMarker = (column: 'name' | 'size' | 'created' | 'accessed' | 'written') => {
+  const getSortMarker = (
+    column: 'name' | 'size' | 'created' | 'accessed' | 'written' | 'age',
+  ) => {
     if (sortBy !== column) {
       return '↕'
     }
@@ -616,7 +652,9 @@ function App() {
           <button type="button" className="sort-header" onClick={() => handleSortClick('written')}>
             Last Write <span>{getSortMarker('written')}</span>
           </button>
-          <span>Age</span>
+          <button type="button" className="sort-header" onClick={() => handleSortClick('age')}>
+            Age <span>{getSortMarker('age')}</span>
+          </button>
         </div>
         <div className="tree-body">
           {visibleRows.length === 0 ? (
@@ -668,7 +706,9 @@ function App() {
                     ) : (
                       <span className="toggle-placeholder" />
                     )}
-                    <span className="name-text">{node.name}</span>
+                    <span className="name-text" title={node.name}>
+                      {truncateNodeName(node.name, node.type)}
+                    </span>
                   </div>
                   <span>{formatBytes(node.sizeBytes)}</span>
                   <span>{formatDisplayDate(getNodeCreationTime(node))}</span>

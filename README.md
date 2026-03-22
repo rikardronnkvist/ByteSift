@@ -26,7 +26,6 @@ It includes:
 - `public/sample-input.json`: realistic sample scan data (100+ nodes)
 - `scripts/bs-scanner.ps1`: PowerShell scanner
 - `scripts/bs-archive.ps1`: PowerShell archive/delete executor
-- `scripts/bs-generate-sample.ps1`: sample dataset generator
 - `scripts/bs-deploy-webapp.ps1`: Azure deployment helper
 
 ## Local Web App

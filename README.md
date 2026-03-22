@@ -27,7 +27,7 @@ It includes:
 - Target exported JSON with `bs-archive.ps1`
 - Delete or archive files and folders
 
-![Workflow Status](./workflow.png)
+![Workflow Status](./workflow.png?raw=true)
 
 
 ## Project Structure

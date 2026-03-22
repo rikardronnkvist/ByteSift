@@ -20,14 +20,14 @@ It includes:
 
 ## Workflow
 
+![Workflow](./workflow.png)
+
 - Target a folder with the `bs-scanner.ps1` script
 - Import JSON file to web front
 - Mark stale and large files
 - Export JSON
 - Target exported JSON with `bs-archive.ps1`
 - Delete or archive files and folders
-
-![Workflow Status](./workflow.png?raw=true)
 
 
 ## Project Structure

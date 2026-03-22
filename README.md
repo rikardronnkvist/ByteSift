@@ -1,7 +1,5 @@
 # ByteSift
 
-![Workflow Status](./workflow.png)
-
 ByteSift is an open-source toolkit for finding large and stale files before they become storage debt.
 
 It includes:
@@ -29,7 +27,8 @@ It includes:
 - Target exported JSON with `bs-archive.ps1`
 - Delete or archive files and folders
 
-[![CI](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml/badge.svg)](https://github.com/rikardronnkvist/ByteSift/actions/workflows/ci.yml)
+![Workflow Status](./workflow.png)
+
 
 ## Project Structure
 

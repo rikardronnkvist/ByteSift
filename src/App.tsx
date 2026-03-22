@@ -301,12 +301,9 @@ const validateNodeTree = (node: unknown): node is ScanNode => {
   let nodeCount = 0
 
   while (stack.length > 0) {
-    const current = stack.pop()
-    if (!current || !isRecord(current.node)) {
-      return false
-    }
+    const current = stack.pop()!
 
-    if (current.depth > MAX_SCAN_NODE_DEPTH) {
+    if (!isRecord(current.node) || current.depth > MAX_SCAN_NODE_DEPTH) {
       return false
     }
 

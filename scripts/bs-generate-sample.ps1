@@ -1,3 +1,20 @@
+<#
+.SYNOPSIS
+Generates a deterministic sample scan dataset for the ByteSift web app.
+
+.DESCRIPTION
+Builds a synthetic directory tree with realistic file sizes and timestamps and writes
+the result to `public/sample-input.json` for local testing and demos.
+The generated data is deterministic because the random seed is fixed.
+
+.EXAMPLE
+pwsh ./scripts/bs-generate-sample.ps1
+
+Regenerates `public/sample-input.json` and prints the total node count.
+
+.NOTES
+No parameters are required.
+#>
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 

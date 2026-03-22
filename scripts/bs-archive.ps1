@@ -1,3 +1,50 @@
+<#
+.SYNOPSIS
+Processes a ByteSift export by archiving or deleting the listed paths.
+
+.DESCRIPTION
+Reads an exported ByteSift JSON file (`output.json` format) and performs one of two actions
+for each item in `items`: move to an archive root (`-Archive`) or remove (`-Delete`).
+The script writes a JSON report with per-item status and aggregate metrics.
+
+.PARAMETER InputPath
+Path to the ByteSift export JSON file.
+`-Input` is supported as an alias for backward compatibility.
+
+.PARAMETER Archive
+Runs the script in archive mode. Items are moved to `-ArchiveRoot` while preserving
+relative structure under the source `rootPath` when possible.
+
+.PARAMETER Delete
+Runs the script in delete mode. Items are removed with recursive force delete.
+
+.PARAMETER Force
+Archive mode only. Allows overwrite when archive destination already exists.
+If omitted and a destination exists, the operation fails.
+
+.PARAMETER ArchiveRoot
+Archive mode only. Destination root folder where archived items are moved.
+
+.PARAMETER Report
+Path for the generated JSON report. If omitted, a timestamped report file is created
+in the current working directory.
+
+.PARAMETER DryRun
+Simulates operations without moving or deleting files.
+
+.EXAMPLE
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -ArchiveRoot "./bytesift-archive"
+
+Archives all items listed in `output.json`.
+
+.EXAMPLE
+pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete -DryRun
+
+Shows what would be deleted without modifying the filesystem.
+
+.NOTES
+Use `-Verbose` to print each archive/delete action as it is processed.
+#>
 [CmdletBinding(DefaultParameterSetName = "Archive")]
 param(
   [Parameter(Mandatory = $true)]
@@ -95,6 +142,29 @@ function Get-ItemMetrics {
   }
 }
 
+function Format-Bytes {
+  param([long]$Bytes)
+
+  if ($Bytes -lt 1024) {
+    return "$Bytes B"
+  }
+
+  $units = @("KB", "MB", "GB", "TB", "PB")
+  [double]$value = $Bytes / 1024.0
+  $unitIndex = 0
+
+  while ($value -ge 1024 -and $unitIndex -lt ($units.Count - 1)) {
+    $value = $value / 1024.0
+    $unitIndex += 1
+  }
+
+  if ($value -ge 100) {
+    return "{0:N0} {1}" -f $value, $units[$unitIndex]
+  }
+
+  return "{0:N1} {1}" -f $value, $units[$unitIndex]
+}
+
 if ([string]::IsNullOrWhiteSpace($InputPath)) {
   throw "Input file path is empty. Provide -Input or -InputPath."
 }
@@ -103,9 +173,20 @@ if (-not (Test-Path -LiteralPath $InputPath)) {
   throw "Input file not found: $InputPath"
 }
 
+$inputFilePath = [System.IO.Path]::GetFullPath($InputPath)
+Write-Host "Input file: $inputFilePath"
+
 $payload = Get-Content -LiteralPath $InputPath -Raw | ConvertFrom-Json
 $rootPath = if ($payload.rootPath) { [string]$payload.rootPath } else { (Get-Location).Path }
 $items = @($payload.items)
+$totalItems = @($items).Count
+$processedItemIndex = 0
+$progressActivity = if ($DryRun) {
+  "Simulating $Mode operations"
+}
+else {
+  "Running $Mode operations"
+}
 
 $results = @()
 $archiveRootPath = $null
@@ -121,7 +202,23 @@ if ($Mode -eq "archive" -and -not $archiveRootPath) {
 
 foreach ($item in $items) {
   $itemPath = [string]$item.path
+  $processedItemIndex += 1
 
+  $percentComplete = if ($totalItems -gt 0) {
+    [int](($processedItemIndex / $totalItems) * 100)
+  }
+  else {
+    100
+  }
+
+  $progressPath = if ([string]::IsNullOrWhiteSpace($itemPath)) {
+    "<unknown path>"
+  }
+  else {
+    $itemPath
+  }
+
+  Write-Progress -Id 1 -Activity $progressActivity -Status "[$processedItemIndex/$totalItems] $progressPath" -PercentComplete $percentComplete
   $metrics = Get-ItemMetrics -Item $item -ItemPath $itemPath
 
   if (-not (Test-Path -LiteralPath $itemPath)) {
@@ -190,6 +287,8 @@ foreach ($item in $items) {
   }
 }
 
+Write-Progress -Id 1 -Activity $progressActivity -Completed
+
 $processedResults = @(
   $results | Where-Object { $_.status -in @("archived", "deleted") }
 )
@@ -202,15 +301,21 @@ $processedFolderCount = @(
   $processedResults | Where-Object { $_.type -eq "directory" }
 ).Count
 
-$processedBytes = [long](
-  $processedResults |
-    Measure-Object -Property sizeBytes -Sum |
-    Select-Object -ExpandProperty Sum
-)
+[long]$processedBytes = 0
+foreach ($result in $processedResults) {
+  if ($result -is [System.Collections.IDictionary]) {
+    if ($result.Contains("sizeBytes")) {
+      $processedBytes += [long]$result["sizeBytes"]
+    }
+  }
+  elseif ($null -ne $result.PSObject.Properties["sizeBytes"]) {
+    $processedBytes += [long]$result.sizeBytes
+  }
+}
 
 $reportObject = [ordered]@{
   processedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-  input = [System.IO.Path]::GetFullPath($InputPath)
+  input = $inputFilePath
   mode = $Mode
   dryRun = [bool]$DryRun
   processedFileCount = $processedFileCount
@@ -228,6 +333,35 @@ if (-not (Test-Path -LiteralPath $reportDir)) {
 
 $reportObject | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $reportPath -Encoding UTF8
 Write-Host "Wrote report: $reportPath"
+
+$archivedCount = @(
+  $results | Where-Object { $_.status -eq "archived" }
+).Count
+
+$deletedCount = @(
+  $results | Where-Object { $_.status -eq "deleted" }
+).Count
+
+$skippedCount = @(
+  $results | Where-Object { $_.status -eq "skipped" }
+).Count
+
+$failedCount = @(
+  $results | Where-Object { $_.status -eq "failed" }
+).Count
+
+$summaryAction = if ($Mode -eq "archive") { "Archived" } else { "Deleted" }
+$summaryActionDryRun = if ($Mode -eq "archive") { "Would archive" } else { "Would delete" }
+
+Write-Host "Summary:"
+Write-Host "  Mode: $Mode$(if ($DryRun) { ' (dry-run)' } else { '' })"
+Write-Host "  $(if ($DryRun) { $summaryActionDryRun } else { $summaryAction }) items: $($archivedCount + $deletedCount)"
+Write-Host "  Skipped items: $skippedCount"
+Write-Host "  Failed items: $failedCount"
+Write-Host "  Total processed files: $processedFileCount"
+Write-Host "  Total processed folders: $processedFolderCount"
+Write-Host "  Total processed size: $(Format-Bytes -Bytes $processedBytes) ($processedBytes bytes)"
+Write-Host "Report: $reportPath"
 
 if ($Mode -eq "archive") {
   $overwriteConflicts = @(

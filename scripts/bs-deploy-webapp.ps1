@@ -1,3 +1,38 @@
+<#
+.SYNOPSIS
+Builds and deploys the ByteSift web app to Azure Storage static website hosting.
+
+.DESCRIPTION
+Creates or updates an Azure resource group and storage account, enables static website
+hosting, and uploads the built `dist` content to the `$web` container.
+By default, the script also runs dependency install and web build before deployment.
+
+.PARAMETER ResourceGroup
+Azure resource group name to create or reuse.
+
+.PARAMETER Location
+Azure region used when creating resources.
+
+.PARAMETER StorageAccount
+Azure Storage account name for static website hosting.
+
+.PARAMETER SkipBuild
+Skips `npm ci` and `npm run build`. Use when `dist` already exists and is up to date.
+
+.EXAMPLE
+pwsh ./scripts/bs-deploy-webapp.ps1
+
+Deploys with default resource names and builds before upload.
+
+.EXAMPLE
+pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swedencentral" -StorageAccount "stbytesift" -SkipBuild
+
+Deploys to specified Azure resources without rebuilding.
+
+.NOTES
+Requires Azure CLI (`az`) and an authenticated session (`az login`).
+Run from the project root.
+#>
 param(
   [string]$ResourceGroup = "rg-bytesift",
   [string]$Location = "swedencentral",

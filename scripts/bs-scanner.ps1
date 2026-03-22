@@ -1,3 +1,36 @@
+<#
+.SYNOPSIS
+Scans a directory tree and exports a ByteSift-compatible JSON snapshot.
+
+.DESCRIPTION
+Recursively scans the provided root folder and emits metadata for files and directories,
+including path, type, size, and timestamps. The output JSON is used by the ByteSift UI
+and archive/delete script workflows.
+
+.PARAMETER Root
+Root path to scan.
+
+.PARAMETER Output
+Output JSON file path. If omitted, a timestamped file is created in the script folder.
+Relative paths are resolved from the current working directory.
+
+.PARAMETER ExcludeFolder
+Optional folder exclusion patterns. Patterns are matched against folder name,
+absolute path, and root-relative path using PowerShell `-like` wildcard matching.
+
+.EXAMPLE
+pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root"
+
+Scans a root folder and writes a timestamped JSON report.
+
+.EXAMPLE
+pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root" -ExcludeFolder "node_modules",".git","dist/*"
+
+Scans while skipping matching folders.
+
+.NOTES
+Use `-Verbose` to print excluded folder skip messages.
+#>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory = $true)]

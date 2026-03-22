@@ -20,7 +20,7 @@ It includes:
 
 ## Workflow
 
-![Workflow](./workflow.png)
+![Workflow](./workflow.png?raw=true)
 
 - Target a folder with the `bs-scanner.ps1` script
 - Import JSON file to web front

@@ -125,6 +125,7 @@ function Get-Node {
       $entries = Get-ChildItem -LiteralPath $Item.FullName -Force -ErrorAction Stop | Sort-Object Name
     }
     catch {
+      Write-Warning "Could not read directory '$($Item.FullName)': $($_.Exception.Message)"
       $entries = @()
     }
 
@@ -140,6 +141,7 @@ function Get-Node {
         $total += [int64]$child.sizeBytes
       }
       catch {
+        Write-Warning "Skipping '$($entry.FullName)': $($_.Exception.Message)"
         continue
       }
     }

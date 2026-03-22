@@ -486,17 +486,32 @@ function App() {
       return stateMap
     }
 
-    const walk = (node: ScanNode): { selected: number; total: number } => {
+    // Collect nodes in pre-order so we can process post-order (children before parents)
+    const order: ScanNode[] = []
+    const traversal: ScanNode[] = [sortedRoot]
+    while (traversal.length > 0) {
+      const node = traversal.pop()!
+      order.push(node)
+      for (const child of node.children ?? []) {
+        traversal.push(child)
+      }
+    }
+
+    const counts = new Map<string, { selected: number; total: number }>()
+    for (let i = order.length - 1; i >= 0; i -= 1) {
+      const node = order[i]
       let selected = selectedPaths.has(node.path) ? 1 : 0
       let total = 1
 
       for (const child of node.children ?? []) {
-        const childCounts = walk(child)
+        const childCounts = counts.get(child.path)!
         selected += childCounts.selected
         total += childCounts.total
       }
 
-      let state: SelectionState = 'none'
+      counts.set(node.path, { selected, total })
+
+      let state: SelectionState
       if (selected === 0) {
         state = 'none'
       } else if (selected === total) {
@@ -506,10 +521,8 @@ function App() {
       }
 
       stateMap.set(node.path, state)
-      return { selected, total }
     }
 
-    walk(sortedRoot)
     return stateMap
   }, [sortedRoot, selectedPaths])
 
@@ -536,12 +549,7 @@ function App() {
     const collectForExport = (node: ScanNode) => {
       const selectionState = selectionStateMap.get(node.path) ?? 'none'
 
-      if (node.type === 'directory' && selectionState === 'all') {
-        pushRecommendation(node)
-        return
-      }
-
-      if (node.type === 'file' && selectionState === 'all') {
+      if (selectionState === 'all') {
         pushRecommendation(node)
         return
       }

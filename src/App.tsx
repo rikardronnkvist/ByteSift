@@ -41,6 +41,7 @@ type SelectionState = 'none' | 'partial' | 'all'
 
 const MB = 1024 * 1024
 const MAX_STALE_DAYS = 365
+const IS_DEV = import.meta.env.DEV
 
 const roundDownToLeadingMagnitude = (value: number): number => {
   if (value <= 0) {
@@ -484,20 +485,6 @@ function App() {
     })
   }
 
-  const expandAll = () => {
-    if (!sortedRoot) {
-      return
-    }
-    setExpandedPaths(collectAllPaths(sortedRoot))
-  }
-
-  const collapseAll = () => {
-    if (!sortedRoot) {
-      return
-    }
-    setExpandedPaths(new Set([sortedRoot.path]))
-  }
-
   const handleSortClick = (
     column: 'name' | 'size' | 'created' | 'accessed' | 'written' | 'age',
   ) => {
@@ -537,8 +524,12 @@ function App() {
             <button type="button" onClick={() => fileInputRef.current?.click()}>
               Load JSON
             </button>
-            <button type="button" onClick={handleLoadSample} className="secondary">
-              Load Sample
+            <button
+              type="button"
+              onClick={exportSelection}
+              disabled={recommendedItems.length === 0}
+            >
+              Export JSON ({recommendedItems.length})
             </button>
             <input
               type="file"
@@ -547,6 +538,11 @@ function App() {
               onChange={handleFileUpload}
               hidden
             />
+            {IS_DEV ? (
+              <button type="button" onClick={handleLoadSample} className="secondary">
+                Load Sample
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="hero-logo-wrap" aria-hidden="true">
@@ -593,18 +589,6 @@ function App() {
             }}
           />
         </label>
-      </section>
-
-      <section className="toolbar">
-        <button type="button" onClick={expandAll} className="secondary">
-          Expand All
-        </button>
-        <button type="button" onClick={collapseAll} className="secondary">
-          Collapse All
-        </button>
-        <button type="button" onClick={exportSelection} disabled={recommendedItems.length === 0}>
-          Export output.json ({recommendedItems.length})
-        </button>
       </section>
 
       <section className="summary-cards">

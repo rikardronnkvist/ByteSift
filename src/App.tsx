@@ -42,6 +42,10 @@ type SelectionState = 'none' | 'partial' | 'all'
 const MB = 1024 * 1024
 const MAX_STALE_DAYS = 365
 const IS_DEV = import.meta.env.DEV
+const MAX_UPLOAD_SIZE_MB = 25
+const MAX_SCAN_NODE_DEPTH = 128
+const MAX_SCAN_NODE_COUNT = 20000
+const MAX_CHILDREN_PER_NODE = 2000
 
 const roundDownToLeadingMagnitude = (value: number): number => {
   if (value <= 0) {
@@ -134,36 +138,46 @@ const flattenVisibleRows = (
   expandedPaths: Set<string>,
   depth = 0,
 ): Row[] => {
-  const rows: Row[] = [{ node, depth }]
-  const canExpand = node.type === 'directory' && (node.children?.length ?? 0) > 0
-  if (!canExpand || !expandedPaths.has(node.path)) {
-    return rows
-  }
+  const rows: Row[] = []
+  const stack: Row[] = [{ node, depth }]
 
-  for (const child of node.children ?? []) {
-    rows.push(...flattenVisibleRows(child, expandedPaths, depth + 1))
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) {
+      continue
+    }
+
+    rows.push(current)
+    const canExpand =
+      current.node.type === 'directory' && (current.node.children?.length ?? 0) > 0
+    if (!canExpand || !expandedPaths.has(current.node.path)) {
+      continue
+    }
+
+    const children = current.node.children ?? []
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push({ node: children[index], depth: current.depth + 1 })
+    }
   }
 
   return rows
 }
 
-const collectAllPaths = (node: ScanNode, output = new Set<string>()): Set<string> => {
-  output.add(node.path)
-  for (const child of node.children ?? []) {
-    collectAllPaths(child, output)
-  }
-  return output
-}
-
 const findNodeByPath = (node: ScanNode, targetPath: string): ScanNode | null => {
-  if (node.path === targetPath) {
-    return node
-  }
+  const stack: ScanNode[] = [node]
 
-  for (const child of node.children ?? []) {
-    const found = findNodeByPath(child, targetPath)
-    if (found) {
-      return found
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) {
+      continue
+    }
+
+    if (current.path === targetPath) {
+      return current
+    }
+
+    for (const child of current.children ?? []) {
+      stack.push(child)
     }
   }
 
@@ -171,18 +185,39 @@ const findNodeByPath = (node: ScanNode, targetPath: string): ScanNode | null => 
 }
 
 const collectSubtreePaths = (node: ScanNode, output = new Set<string>()): Set<string> => {
-  output.add(node.path)
-  for (const child of node.children ?? []) {
-    collectSubtreePaths(child, output)
+  const stack: ScanNode[] = [node]
+
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) {
+      continue
+    }
+
+    output.add(current.path)
+    for (const child of current.children ?? []) {
+      stack.push(child)
+    }
   }
+
   return output
 }
 
 const countNodes = (node: ScanNode): number => {
-  let total = 1
-  for (const child of node.children ?? []) {
-    total += countNodes(child)
+  let total = 0
+  const stack: ScanNode[] = [node]
+
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) {
+      continue
+    }
+
+    total += 1
+    for (const child of current.children ?? []) {
+      stack.push(child)
+    }
   }
+
   return total
 }
 
@@ -192,13 +227,22 @@ const getMaxNodeMetrics = (
   maxSizeBytes: number
   maxAgeDays: number
 } => {
-  let maxSizeBytes = node.sizeBytes
-  let maxAgeDays = ageInDays(getNodeLastWriteTime(node))
+  let maxSizeBytes = 0
+  let maxAgeDays = 0
+  const stack: ScanNode[] = [node]
 
-  for (const child of node.children ?? []) {
-    const childMetrics = getMaxNodeMetrics(child)
-    maxSizeBytes = Math.max(maxSizeBytes, childMetrics.maxSizeBytes)
-    maxAgeDays = Math.max(maxAgeDays, childMetrics.maxAgeDays)
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) {
+      continue
+    }
+
+    maxSizeBytes = Math.max(maxSizeBytes, current.sizeBytes)
+    maxAgeDays = Math.max(maxAgeDays, ageInDays(getNodeLastWriteTime(current)))
+
+    for (const child of current.children ?? []) {
+      stack.push(child)
+    }
   }
 
   return { maxSizeBytes, maxAgeDays }
@@ -207,22 +251,105 @@ const getMaxNodeMetrics = (
 const getMaxDescendantSizeBytes = (node: ScanNode): number => {
   let maxSizeBytes = 0
 
-  for (const child of node.children ?? []) {
-    maxSizeBytes = Math.max(maxSizeBytes, child.sizeBytes, getMaxDescendantSizeBytes(child))
+  const stack: ScanNode[] = [...(node.children ?? [])]
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) {
+      continue
+    }
+
+    maxSizeBytes = Math.max(maxSizeBytes, current.sizeBytes)
+    for (const child of current.children ?? []) {
+      stack.push(child)
+    }
   }
 
   return maxSizeBytes
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const validateNodeTree = (node: unknown): node is ScanNode => {
+  if (!isRecord(node)) {
+    return false
+  }
+
+  const stack: Array<{ node: unknown; depth: number }> = [{ node, depth: 0 }]
+  let nodeCount = 0
+
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current || !isRecord(current.node)) {
+      return false
+    }
+
+    if (current.depth > MAX_SCAN_NODE_DEPTH) {
+      return false
+    }
+
+    nodeCount += 1
+    if (nodeCount > MAX_SCAN_NODE_COUNT) {
+      return false
+    }
+
+    const candidate = current.node as Partial<ScanNode>
+    if (
+      typeof candidate.name !== 'string' ||
+      typeof candidate.path !== 'string' ||
+      (candidate.type !== 'file' && candidate.type !== 'directory') ||
+      typeof candidate.sizeBytes !== 'number' ||
+      !Number.isFinite(candidate.sizeBytes) ||
+      typeof candidate.modifiedAt !== 'string'
+    ) {
+      return false
+    }
+
+    if (
+      candidate.CreationTime !== undefined &&
+      typeof candidate.CreationTime !== 'string'
+    ) {
+      return false
+    }
+    if (
+      candidate.LastAccessTime !== undefined &&
+      typeof candidate.LastAccessTime !== 'string'
+    ) {
+      return false
+    }
+    if (
+      candidate.LastWriteTime !== undefined &&
+      typeof candidate.LastWriteTime !== 'string'
+    ) {
+      return false
+    }
+
+    const children = candidate.children
+    if (children === undefined) {
+      continue
+    }
+
+    if (!Array.isArray(children) || children.length > MAX_CHILDREN_PER_NODE) {
+      return false
+    }
+
+    for (let index = children.length - 1; index >= 0; index -= 1) {
+      stack.push({ node: children[index], depth: current.depth + 1 })
+    }
+  }
+
+  return true
+}
+
 const validateInput = (payload: unknown): payload is ScanInput => {
-  if (!payload || typeof payload !== 'object') {
+  if (!isRecord(payload)) {
     return false
   }
   const candidate = payload as Partial<ScanInput>
   return (
     typeof candidate.rootPath === 'string' &&
     typeof candidate.generatedAt === 'string' &&
-    !!candidate.node
+    validateNodeTree(candidate.node)
   )
 }
 
@@ -231,9 +358,9 @@ function App() {
   const [error, setError] = useState<string>('')
   const [staleDays, setStaleDays] = useState(180)
   const [minSizeMb, setMinSizeMb] = useState(1024)
-    const [sortBy, setSortBy] = useState<
-      'size' | 'name' | 'created' | 'accessed' | 'written' | 'age'
-    >(
+  const [sortBy, setSortBy] = useState<
+    'size' | 'name' | 'created' | 'accessed' | 'written' | 'age'
+  >(
     'size',
   )
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -243,7 +370,7 @@ function App() {
 
   const loadInput = (payload: unknown) => {
     if (!validateInput(payload)) {
-      setError('Invalid JSON format. Expected: rootPath, generatedAt, node.')
+      setError('Invalid JSON format or file is too complex to process safely.')
       return
     }
     const typed = payload as ScanInput
@@ -265,6 +392,13 @@ function App() {
     if (!file) {
       return
     }
+
+    if (file.size > MAX_UPLOAD_SIZE_MB * MB) {
+      setError(`JSON file is too large. Maximum supported size is ${MAX_UPLOAD_SIZE_MB} MB.`)
+      event.target.value = ''
+      return
+    }
+
     try {
       const text = await file.text()
       const normalized = text.replace(/^\uFEFF/, '')

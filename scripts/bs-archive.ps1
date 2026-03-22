@@ -89,6 +89,76 @@ if (-not [string]::IsNullOrWhiteSpace($Report)) {
   $reportPath = [System.IO.Path]::GetFullPath($Report)
 }
 
+function Test-IsPathWithinRoot {
+  param(
+    [string]$CandidatePath,
+    [string]$RootPath
+  )
+
+  $resolvedCandidate = [System.IO.Path]::GetFullPath($CandidatePath)
+  $resolvedRoot = [System.IO.Path]::GetFullPath($RootPath)
+  $comparison = [System.StringComparison]::OrdinalIgnoreCase
+
+  if ($resolvedCandidate.Equals($resolvedRoot, $comparison)) {
+    return $true
+  }
+
+  $rootWithSeparator = $resolvedRoot.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+  return $resolvedCandidate.StartsWith($rootWithSeparator, $comparison)
+}
+
+function Test-IsValidArchiveItem {
+  param([object]$Item)
+
+  if ($null -eq $Item) {
+    return $false
+  }
+
+  $itemProperties = $Item.PSObject.Properties.Name
+  if (-not ($itemProperties -contains "path") -or [string]::IsNullOrWhiteSpace([string]$Item.path)) {
+    return $false
+  }
+
+  if (($itemProperties -contains "type") -and ([string]$Item.type -notin @("file", "directory"))) {
+    return $false
+  }
+
+  if (($itemProperties -contains "sizeBytes") -and -not ($Item.sizeBytes -is [ValueType])) {
+    return $false
+  }
+
+  return $true
+}
+
+function Assert-ValidArchivePayload {
+  param([object]$Payload)
+
+  if ($null -eq $Payload) {
+    throw "Input JSON is empty or invalid."
+  }
+
+  $payloadProperties = $Payload.PSObject.Properties.Name
+  if (-not ($payloadProperties -contains "rootPath") -or [string]::IsNullOrWhiteSpace([string]$Payload.rootPath)) {
+    throw "Input JSON is missing a valid 'rootPath' property."
+  }
+
+  if (-not ($payloadProperties -contains "items") -or $null -eq $Payload.items) {
+    throw "Input JSON is missing a valid 'items' array."
+  }
+
+  if ($Payload.items -isnot [System.Collections.IEnumerable] -or $Payload.items -is [string]) {
+    throw "Input JSON property 'items' must be an array."
+  }
+
+  $itemIndex = 0
+  foreach ($item in @($Payload.items)) {
+    $itemIndex += 1
+    if (-not (Test-IsValidArchiveItem -Item $item)) {
+      throw "Input JSON item #$itemIndex is invalid. Each item must include a non-empty path and optional type of 'file' or 'directory'."
+    }
+  }
+}
+
 function Resolve-ArchiveDestination {
   param(
     [string]$ItemPath,
@@ -99,7 +169,7 @@ function Resolve-ArchiveDestination {
   $resolvedItem = [System.IO.Path]::GetFullPath($ItemPath)
   $resolvedRoot = [System.IO.Path]::GetFullPath($RootPath)
 
-  if ($resolvedItem.StartsWith($resolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+  if (Test-IsPathWithinRoot -CandidatePath $resolvedItem -RootPath $resolvedRoot) {
     $relative = $resolvedItem.Substring($resolvedRoot.Length).TrimStart('\\', '/')
     if ([string]::IsNullOrWhiteSpace($relative)) {
       $relative = Split-Path -Path $resolvedItem -Leaf
@@ -109,7 +179,12 @@ function Resolve-ArchiveDestination {
     $relative = Split-Path -Path $resolvedItem -Leaf
   }
 
-  return Join-Path -Path $ArchiveRootPath -ChildPath $relative
+  $destinationPath = [System.IO.Path]::GetFullPath((Join-Path -Path $ArchiveRootPath -ChildPath $relative))
+  if (-not (Test-IsPathWithinRoot -CandidatePath $destinationPath -RootPath $ArchiveRootPath)) {
+    throw "Refusing to archive outside of archive root: $destinationPath"
+  }
+
+  return $destinationPath
 }
 
 function Get-ItemMetrics {
@@ -186,7 +261,8 @@ $inputFilePath = [System.IO.Path]::GetFullPath($InputPath)
 Write-Host "Input file: $inputFilePath"
 
 $payload = Get-Content -LiteralPath $InputPath -Raw | ConvertFrom-Json
-$rootPath = if ($payload.rootPath) { [string]$payload.rootPath } else { (Get-Location).Path }
+Assert-ValidArchivePayload -Payload $payload
+$rootPath = [string]$payload.rootPath
 $items = @($payload.items)
 $totalItems = @($items).Count
 $processedItemIndex = 0

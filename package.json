@@ -8,8 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "sample-data": "pwsh ./scripts/bs-generate-sample.ps1"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^19.2.4",

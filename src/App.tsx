@@ -43,7 +43,6 @@ type StaleAttribute = 'lastWrite' | 'created' | 'lastAccess'
 
 const MB = 1024 * 1024
 const MAX_STALE_DAYS = 365
-const IS_DEV = import.meta.env.DEV
 const MAX_UPLOAD_SIZE_MB = 1024
 const MAX_BROWSER_PARSE_SIZE_MB = 500
 const MAX_SCAN_NODE_DEPTH = 512
@@ -1097,11 +1096,9 @@ function App() {
               onChange={handleFileUpload}
               hidden
             />
-            {IS_DEV ? (
-              <button type="button" onClick={handleLoadSample} className="secondary" disabled={isLoading}>
-                Load Sample
-              </button>
-            ) : null}
+            <button type="button" onClick={handleLoadSample} className="secondary" disabled={isLoading}>
+              Load Sample
+            </button>
           </div>
         </div>
         <div className="hero-logo-wrap" aria-hidden="true">

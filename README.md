@@ -135,7 +135,9 @@ For SPA route fallback, add `web.config` in the deployed site root (same level a
 			</rules>
 		</rewrite>
 		<staticContent>
+			<remove fileExtension=".json" />
 			<mimeMap fileExtension=".json" mimeType="application/json" />
+			<remove fileExtension=".webmanifest" />
 			<mimeMap fileExtension=".webmanifest" mimeType="application/manifest+json" />
 		</staticContent>
 	</system.webServer>
@@ -145,6 +147,7 @@ For SPA route fallback, add `web.config` in the deployed site root (same level a
 Notes:
 - If IIS site is hosted under a virtual directory (not `/`), set Vite `base` in `vite.config.ts` before build.
 - If you want `web.config` copied automatically on build, place it in `public/web.config`.
+- If IIS already defines a MIME type for `.json` or `.webmanifest`, use the `remove` entries above or omit the duplicate mapping.
 
 ## Screenshot
 

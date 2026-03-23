@@ -418,7 +418,7 @@ function App() {
 
   const handleLoadSample = async () => {
     try {
-      const response = await fetch('/sample-input.json')
+      const response = await fetch(`${import.meta.env.BASE_URL}sample-input.json`)
       if (!response.ok) {
         throw new Error('Sample fetch failed')
       }

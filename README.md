@@ -31,6 +31,7 @@ It includes:
 
 - `.github/workflows/ci.yml`: CI pipeline
 - `.github/workflows/deploy-azure.yml`: Azure pipeline
+- `.github/workflows/deploy-github-pages.yml`: GitHub Pages pipeline
 - `src/`: ByteSift web app (React/Vite)
 - `public/sample-input.json`: realistic sample scan data (100+ nodes)
 - `scripts/bs-scanner.ps1`: PowerShell scanner
@@ -97,6 +98,26 @@ Deploy to Azure Storage static website:
 ```powershell
 pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swedencentral" -StorageAccount "stbytesift"
 ```
+
+## Deploy Web App To GitHub Pages
+
+This repository includes a workflow that builds and deploys the web app to GitHub Pages.
+
+Workflow:
+- `.github/workflows/deploy-github-pages.yml`
+
+How it works:
+- On push to `main` (or manual run), GitHub Actions builds the app with `VITE_BASE_PATH=/ByteSift/`
+- The workflow publishes `dist/` using the official Pages deploy actions
+- `dist/index.html` is copied to `dist/404.html` for SPA refresh/deep-link fallback on Pages
+
+Requirements:
+- GitHub Pages enabled in repository settings
+- Source set to **GitHub Actions**
+
+Notes:
+- The sample loader uses `import.meta.env.BASE_URL`, so `sample-input.json` resolves correctly under the repository subpath on Pages.
+- If you fork or rename the repository, update `VITE_BASE_PATH` in the workflow to match the new repo path.
 
 ## Deploy Web App To On-Prem IIS
 

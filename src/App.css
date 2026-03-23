@@ -235,6 +235,10 @@ h1 {
   background: #cf5b30;
 }
 
+.marker-stale.contains {
+  border: 2px solid #cf5b30;
+}
+
 .name-cell {
   display: flex;
   align-items: center;

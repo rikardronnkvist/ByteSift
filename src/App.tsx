@@ -471,6 +471,41 @@ function App() {
     return countNodes(scanInput.node)
   }, [scanInput])
 
+  const staleDescendantMap = useMemo(() => {
+    const containsStale = new Map<string, boolean>()
+    if (!sortedRoot) {
+      return containsStale
+    }
+
+    const getDateForNode = (node: ScanNode): string =>
+      staleAttribute === 'created'
+        ? getNodeCreationTime(node)
+        : staleAttribute === 'lastAccess'
+          ? getNodeLastAccessTime(node)
+          : getNodeLastWriteTime(node)
+
+    const isNodeStale = (node: ScanNode) => ageInDays(getDateForNode(node)) >= staleDays
+
+    // Post-order traversal so children are processed before parents
+    const order: ScanNode[] = []
+    const traversal: ScanNode[] = [sortedRoot]
+    while (traversal.length > 0) {
+      const node = traversal.pop()!
+      order.push(node)
+      for (const child of node.children ?? []) {
+        traversal.push(child)
+      }
+    }
+
+    for (let i = order.length - 1; i >= 0; i -= 1) {
+      const node = order[i]
+      const childHasStale = (node.children ?? []).some((child) => containsStale.get(child.path))
+      containsStale.set(node.path, isNodeStale(node) || childHasStale)
+    }
+
+    return containsStale
+  }, [sortedRoot, staleDays, staleAttribute])
+
   const selectionStateMap = useMemo(() => {
     const stateMap = new Map<string, SelectionState>()
     if (!sortedRoot) {
@@ -798,6 +833,7 @@ function App() {
               const lastWriteTime = getNodeLastWriteTime(node)
               const dateToUse = staleAttribute === 'created' ? getNodeCreationTime(node) : staleAttribute === 'lastAccess' ? getNodeLastAccessTime(node) : lastWriteTime
               const stale = ageInDays(dateToUse) >= staleDays
+              const containsStaleDescendant = node.type === 'directory' && !stale && (staleDescendantMap.get(node.path) ?? false)
               const large = node.sizeBytes >= minSizeMb * MB
               const selectionState = selectionStateMap.get(node.path) ?? 'none'
               const selected = selectionState === 'all'
@@ -807,7 +843,7 @@ function App() {
                 <div className="tree-row" key={node.path}>
                   <span className="marker-stack" aria-hidden="true">
                     <span className={`marker-cell marker-large ${large ? 'active' : ''}`} />
-                    <span className={`marker-cell marker-stale ${stale ? 'active' : ''}`} />
+                    <span className={`marker-cell marker-stale ${stale ? 'active' : containsStaleDescendant ? 'contains' : ''}`} />
                   </span>
                   <div className="name-cell" style={{ paddingLeft: `${depth * 1.15}rem` }}>
                     <input

@@ -350,6 +350,7 @@ function App() {
   const [scanInput, setScanInput] = useState<ScanInput | null>(null)
   const [error, setError] = useState<string>('')
   const [staleDays, setStaleDays] = useState(180)
+  const [staleAttribute, setStaleAttribute] = useState<'lastWrite' | 'created' | 'lastAccess'>('lastWrite')
   const [minSizeMb, setMinSizeMb] = useState(1024)
   const [sortBy, setSortBy] = useState<SortColumn>('size')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -371,6 +372,7 @@ function App() {
     setScanInput(typed)
     setMinSizeMb(Math.max(0, suggestedMinSizeMb))
     setStaleDays(Math.min(MAX_STALE_DAYS, Math.max(0, suggestedStaleDays)))
+    setStaleAttribute('lastWrite')
     setExpandedPaths(rootExpanded)
     setSelectedPaths(new Set<string>())
     setError('')
@@ -704,17 +706,31 @@ function App() {
             {'Stale (Days)'}
             <span className="control-label-marker control-label-marker-stale" aria-hidden="true" />
           </span>
-          <input
-            type="number"
-            value={staleDays}
-            min={0}
-            max={MAX_STALE_DAYS}
-            onChange={(event) => {
-              const value = Number(event.target.value)
-              const normalized = Number.isFinite(value) && value >= 0 ? value : 0
-              setStaleDays(Math.min(MAX_STALE_DAYS, normalized))
-            }}
-          />
+          <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
+            <input
+              type="number"
+              value={staleDays}
+              min={0}
+              max={MAX_STALE_DAYS}
+              onChange={(event) => {
+                const value = Number(event.target.value)
+                const normalized = Number.isFinite(value) && value >= 0 ? value : 0
+                setStaleDays(Math.min(MAX_STALE_DAYS, normalized))
+              }}
+              style={{ flex: 1 }}
+            />
+            <select
+              value={staleAttribute}
+              onChange={(event) => {
+                setStaleAttribute(event.target.value as 'lastWrite' | 'created' | 'lastAccess')
+              }}
+              aria-label="Select date attribute for stale calculation"
+            >
+              <option value="lastWrite">Last Write</option>
+              <option value="created">Created</option>
+              <option value="lastAccess">Last Access</option>
+            </select>
+          </div>
         </label>
       </section>
 
@@ -780,7 +796,8 @@ function App() {
               const isExpandable = node.type === 'directory' && childrenCount > 0
               const isExpanded = expandedPaths.has(node.path)
               const lastWriteTime = getNodeLastWriteTime(node)
-              const stale = ageInDays(lastWriteTime) >= staleDays
+              const dateToUse = staleAttribute === 'created' ? getNodeCreationTime(node) : staleAttribute === 'lastAccess' ? getNodeLastAccessTime(node) : lastWriteTime
+              const stale = ageInDays(dateToUse) >= staleDays
               const large = node.sizeBytes >= minSizeMb * MB
               const selectionState = selectionStateMap.get(node.path) ?? 'none'
               const selected = selectionState === 'all'
@@ -825,7 +842,7 @@ function App() {
                   <span>{formatDisplayDate(getNodeCreationTime(node))}</span>
                   <span>{formatDisplayDate(getNodeLastAccessTime(node))}</span>
                   <span>{formatDisplayDate(lastWriteTime)}</span>
-                  <span>{ageInDays(lastWriteTime)} days</span>
+                  <span>{ageInDays(dateToUse)} days</span>
                 </div>
               )
             })

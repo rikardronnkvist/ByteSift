@@ -312,6 +312,11 @@ type ValidationResult =
 
 type SupportedEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
 
+type BomDetection = {
+  encoding: SupportedEncoding
+  offset: number
+}
+
 type RowRenderState = {
   childrenCount: number
   isExpandable: boolean
@@ -412,6 +417,74 @@ const getLargeMarkerTitle = (large: boolean, minSizeMb: number): string | undefi
   }
 
   return `Large - Over ${formatBytes(minSizeMb * MB)}`
+}
+
+const detectBomEncoding = (bytes: Uint8Array): BomDetection | null => {
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return { encoding: 'utf-8', offset: 3 }
+  }
+
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return { encoding: 'utf-16le', offset: 2 }
+  }
+
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return { encoding: 'utf-16be', offset: 2 }
+  }
+
+  return null
+}
+
+const getUtf16Heuristics = (bytes: Uint8Array): { likelyUtf16Le: boolean; likelyUtf16Be: boolean } => {
+  const sample = bytes.subarray(0, Math.min(bytes.length, 4096))
+  let evenNulls = 0
+  let oddNulls = 0
+
+  for (let i = 0; i < sample.length; i += 1) {
+    if (sample[i] !== 0) {
+      continue
+    }
+
+    if (i % 2 === 0) {
+      evenNulls += 1
+    } else {
+      oddNulls += 1
+    }
+  }
+
+  const nullThreshold = Math.max(8, Math.floor(sample.length * 0.1))
+  return {
+    likelyUtf16Le: oddNulls >= nullThreshold && oddNulls > evenNulls * 2,
+    likelyUtf16Be: evenNulls >= nullThreshold && evenNulls > oddNulls * 2,
+  }
+}
+
+const parseByEncodingOrder = (
+  bytes: Uint8Array,
+  encodingsToTry: SupportedEncoding[],
+  decode: (encoding: SupportedEncoding, source: Uint8Array) => string,
+): unknown => {
+  let firstParseError: unknown = null
+  let lastError: unknown = null
+
+  for (const encoding of encodingsToTry) {
+    try {
+      const decoded = decode(encoding, bytes)
+      const trimmed = decoded.trimStart()
+      if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+        continue
+      }
+
+      return JSON.parse(decoded) as unknown
+    } catch (error) {
+      if (!firstParseError) {
+        firstParseError = error
+      }
+      lastError = error
+    }
+  }
+
+  throw (firstParseError ?? lastError ?? new Error('Unable to parse JSON from file buffer.'))
 }
 
 const getSortComparator = (sortBy: SortColumn) => {
@@ -554,64 +627,14 @@ const parseJsonFromBuffer = (buffer: ArrayBuffer): unknown => {
   const decode = (encoding: SupportedEncoding, source: Uint8Array): string =>
     new TextDecoder(encoding).decode(source).replace(/^\uFEFF/, '')
 
-  const startsLikeJson = (text: string): boolean => {
-    const trimmed = text.trimStart()
-    return trimmed.startsWith('{') || trimmed.startsWith('[')
+  const bomDetection = detectBomEncoding(bytes)
+  if (bomDetection) {
+    return JSON.parse(decode(bomDetection.encoding, bytes.subarray(bomDetection.offset))) as unknown
   }
 
-  const parseDecoded = (text: string): unknown => JSON.parse(text) as unknown
-
-  // BOM-based decoding is the most reliable signal and should be authoritative.
-  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
-    return parseDecoded(decode('utf-8', bytes.subarray(3)))
-  }
-  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
-    return parseDecoded(decode('utf-16le', bytes.subarray(2)))
-  }
-  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
-    return parseDecoded(decode('utf-16be', bytes.subarray(2)))
-  }
-
-  // Heuristic for UTF-16 without BOM based on null-byte distribution in first chunk.
-  const sample = bytes.subarray(0, Math.min(bytes.length, 4096))
-  let evenNulls = 0
-  let oddNulls = 0
-  for (let i = 0; i < sample.length; i += 1) {
-    if (sample[i] !== 0) {
-      continue
-    }
-    if (i % 2 === 0) {
-      evenNulls += 1
-    } else {
-      oddNulls += 1
-    }
-  }
-
-  const nullThreshold = Math.max(8, Math.floor(sample.length * 0.1))
-  const likelyUtf16Le = oddNulls >= nullThreshold && oddNulls > evenNulls * 2
-  const likelyUtf16Be = evenNulls >= nullThreshold && evenNulls > oddNulls * 2
-
+  const { likelyUtf16Le, likelyUtf16Be } = getUtf16Heuristics(bytes)
   const encodingsToTry = getEncodingOrder(likelyUtf16Le, likelyUtf16Be)
-
-  let firstParseError: unknown = null
-  let lastError: unknown = null
-
-  for (const encoding of encodingsToTry) {
-    try {
-      const decoded = decode(encoding, bytes)
-      if (!startsLikeJson(decoded)) {
-        continue
-      }
-      return parseDecoded(decoded)
-    } catch (error) {
-      if (!firstParseError) {
-        firstParseError = error
-      }
-      lastError = error
-    }
-  }
-
-  throw (firstParseError ?? lastError ?? new Error('Unable to parse JSON from file buffer.'))
+  return parseByEncodingOrder(bytes, encodingsToTry, decode)
 }
 
 function App() {
@@ -955,6 +978,93 @@ function App() {
     return sortDirection === 'asc' ? '▲' : '▼'
   }
 
+  const renderTreeBody = () => {
+    if (isLoading) {
+      return (
+        <div className="tree-loading" role="status" aria-live="polite">
+          <span className="spinner" aria-hidden="true" />
+          <span>Loading JSON...</span>
+        </div>
+      )
+    }
+
+    if (visibleRows.length === 0) {
+      const emptyMessage = scanInput
+        ? 'No nodes are visible at this level. Try expanding directories.'
+        : 'Load data to see nodes.'
+      return <p className="empty">{emptyMessage}</p>
+    }
+
+    return visibleRows.map(({ node, depth }) => {
+      const rowState = getRowRenderState(
+        node,
+        staleAttribute,
+        staleDays,
+        staleDescendantMap,
+        minSizeMb,
+        selectionStateMap,
+        expandedPaths,
+      )
+
+      const largeMarkerClassName = rowState.large
+        ? 'marker-cell marker-large active'
+        : 'marker-cell marker-large'
+      const staleMarkerClassName = `marker-cell marker-stale ${rowState.staleMarkerState}`
+      const checkboxClassName = rowState.partial
+        ? 'node-checkbox partial'
+        : 'node-checkbox'
+
+      return (
+        <div className="tree-row" key={node.path}>
+          <span className="marker-stack" aria-hidden="true">
+            <span
+              className={largeMarkerClassName}
+              title={rowState.largeMarkerTitle}
+            />
+            <span
+              className={staleMarkerClassName}
+              title={rowState.staleMarkerTitle}
+            />
+          </span>
+          <div className="name-cell" style={{ paddingLeft: `${depth * 1.15}rem` }}>
+            <input
+              type="checkbox"
+              className={checkboxClassName}
+              checked={rowState.selected}
+              onChange={() => toggleSelected(node.path)}
+              ref={(element) => {
+                if (element) {
+                  element.indeterminate = rowState.partial
+                }
+              }}
+              aria-label={`Select ${node.path}`}
+            />
+            {rowState.isExpandable ? (
+              <button
+                type="button"
+                className="toggle"
+                onClick={() => toggleExpanded(node.path)}
+                aria-label={`Toggle ${node.path}`}
+              >
+                {rowState.isExpanded ? '▾' : '▸'}
+              </button>
+            ) : (
+              <span className="toggle-placeholder" />
+            )}
+            <span className="name-text" title={node.name}>
+              {truncateNodeName(node.name, node.type)}
+            </span>
+          </div>
+          <span>{formatBytes(node.sizeBytes)}</span>
+          <span>{formatDisplayDate(getNodeCreationTime(node))}</span>
+          <span>{formatDisplayDate(getNodeLastAccessTime(node))}</span>
+          <span>{formatDisplayDate(rowState.lastWriteTime)}</span>
+          <span>{rowState.ageDays} days</span>
+        </div>
+      )
+    })
+  }
+
   return (
     <div className="app-shell">
       <header className="hero">
@@ -1103,89 +1213,7 @@ function App() {
             Age <span>{getSortMarker('age')}</span>
           </button>
         </div>
-        <div className="tree-body">
-          {isLoading ? (
-            <div className="tree-loading" role="status" aria-live="polite">
-              <span className="spinner" aria-hidden="true" />
-              <span>Loading JSON...</span>
-            </div>
-          ) : visibleRows.length === 0 ? (
-            <p className="empty">
-              {scanInput
-                ? 'No nodes are visible at this level. Try expanding directories.'
-                : 'Load data to see nodes.'}
-            </p>
-          ) : (
-            visibleRows.map(({ node, depth }) => {
-              const rowState = getRowRenderState(
-                node,
-                staleAttribute,
-                staleDays,
-                staleDescendantMap,
-                minSizeMb,
-                selectionStateMap,
-                expandedPaths,
-              )
-
-              const largeMarkerClassName = rowState.large
-                ? 'marker-cell marker-large active'
-                : 'marker-cell marker-large'
-              const staleMarkerClassName = `marker-cell marker-stale ${rowState.staleMarkerState}`
-              const checkboxClassName = rowState.partial
-                ? 'node-checkbox partial'
-                : 'node-checkbox'
-
-              return (
-                <div className="tree-row" key={node.path}>
-                  <span className="marker-stack" aria-hidden="true">
-                    <span
-                      className={largeMarkerClassName}
-                      title={rowState.largeMarkerTitle}
-                    />
-                    <span
-                      className={staleMarkerClassName}
-                      title={rowState.staleMarkerTitle}
-                    />
-                  </span>
-                  <div className="name-cell" style={{ paddingLeft: `${depth * 1.15}rem` }}>
-                    <input
-                      type="checkbox"
-                      className={checkboxClassName}
-                      checked={rowState.selected}
-                      onChange={() => toggleSelected(node.path)}
-                      ref={(element) => {
-                        if (element) {
-                          element.indeterminate = rowState.partial
-                        }
-                      }}
-                      aria-label={`Select ${node.path}`}
-                    />
-                    {rowState.isExpandable ? (
-                      <button
-                        type="button"
-                        className="toggle"
-                        onClick={() => toggleExpanded(node.path)}
-                        aria-label={`Toggle ${node.path}`}
-                      >
-                        {rowState.isExpanded ? '▾' : '▸'}
-                      </button>
-                    ) : (
-                      <span className="toggle-placeholder" />
-                    )}
-                    <span className="name-text" title={node.name}>
-                      {truncateNodeName(node.name, node.type)}
-                    </span>
-                  </div>
-                  <span>{formatBytes(node.sizeBytes)}</span>
-                  <span>{formatDisplayDate(getNodeCreationTime(node))}</span>
-                  <span>{formatDisplayDate(getNodeLastAccessTime(node))}</span>
-                  <span>{formatDisplayDate(rowState.lastWriteTime)}</span>
-                  <span>{rowState.ageDays} days</span>
-                </div>
-              )
-            })
-          )}
-        </div>
+        <div className="tree-body">{renderTreeBody()}</div>
       </section>
     </div>
   )

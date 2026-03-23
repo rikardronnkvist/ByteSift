@@ -848,17 +848,27 @@ function App() {
               const selected = selectionState === 'all'
               const partial = selectionState === 'partial'
               let staleMarkerState = ''
+              let staleMarkerTitle: string | undefined
               if (stale) {
                 staleMarkerState = 'active'
+                staleMarkerTitle = `Stale - Older than ${staleDays} days`
               } else if (containsStaleDescendant) {
                 staleMarkerState = 'contains'
+                staleMarkerTitle = 'Stale - Contains old files or folders'
               }
+              const largeMarkerTitle = large ? `Large - Over ${formatBytes(minSizeMb * MB)}` : undefined
 
               return (
                 <div className="tree-row" key={node.path}>
                   <span className="marker-stack" aria-hidden="true">
-                    <span className={`marker-cell marker-large ${large ? 'active' : ''}`} />
-                    <span className={`marker-cell marker-stale ${staleMarkerState}`} />
+                    <span
+                      className={`marker-cell marker-large ${large ? 'active' : ''}`}
+                      title={largeMarkerTitle}
+                    />
+                    <span
+                      className={`marker-cell marker-stale ${staleMarkerState}`}
+                      title={staleMarkerTitle}
+                    />
                   </span>
                   <div className="name-cell" style={{ paddingLeft: `${depth * 1.15}rem` }}>
                     <input

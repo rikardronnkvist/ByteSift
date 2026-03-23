@@ -39,6 +39,7 @@ type Row = {
 
 type SelectionState = 'none' | 'partial' | 'all'
 type SortColumn = 'size' | 'name' | 'created' | 'accessed' | 'written' | 'age'
+type StaleAttribute = 'lastWrite' | 'created' | 'lastAccess'
 
 const MB = 1024 * 1024
 const MAX_STALE_DAYS = 365
@@ -84,6 +85,18 @@ const ageInDays = (dateIso: string): number => {
 const getNodeLastWriteTime = (node: ScanNode): string => node.LastWriteTime ?? node.modifiedAt
 const getNodeCreationTime = (node: ScanNode): string => node.CreationTime ?? node.modifiedAt
 const getNodeLastAccessTime = (node: ScanNode): string => node.LastAccessTime ?? node.modifiedAt
+
+const getNodeDateForStaleAttribute = (node: ScanNode, staleAttribute: StaleAttribute): string => {
+  switch (staleAttribute) {
+    case 'created':
+      return getNodeCreationTime(node)
+    case 'lastAccess':
+      return getNodeLastAccessTime(node)
+    case 'lastWrite':
+    default:
+      return getNodeLastWriteTime(node)
+  }
+}
 
 const formatDisplayDate = (dateIso: string): string => {
   const date = new Date(dateIso)
@@ -350,7 +363,7 @@ function App() {
   const [scanInput, setScanInput] = useState<ScanInput | null>(null)
   const [error, setError] = useState<string>('')
   const [staleDays, setStaleDays] = useState(180)
-  const [staleAttribute, setStaleAttribute] = useState<'lastWrite' | 'created' | 'lastAccess'>('lastWrite')
+  const [staleAttribute, setStaleAttribute] = useState<StaleAttribute>('lastWrite')
   const [minSizeMb, setMinSizeMb] = useState(1024)
   const [sortBy, setSortBy] = useState<SortColumn>('size')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
@@ -478,11 +491,7 @@ function App() {
     }
 
     const getDateForNode = (node: ScanNode): string =>
-      staleAttribute === 'created'
-        ? getNodeCreationTime(node)
-        : staleAttribute === 'lastAccess'
-          ? getNodeLastAccessTime(node)
-          : getNodeLastWriteTime(node)
+      getNodeDateForStaleAttribute(node, staleAttribute)
 
     const isNodeStale = (node: ScanNode) => ageInDays(getDateForNode(node)) >= staleDays
 
@@ -757,7 +766,7 @@ function App() {
             <select
               value={staleAttribute}
               onChange={(event) => {
-                setStaleAttribute(event.target.value as 'lastWrite' | 'created' | 'lastAccess')
+                setStaleAttribute(event.target.value as StaleAttribute)
               }}
               aria-label="Select date attribute for stale calculation"
             >
@@ -831,19 +840,25 @@ function App() {
               const isExpandable = node.type === 'directory' && childrenCount > 0
               const isExpanded = expandedPaths.has(node.path)
               const lastWriteTime = getNodeLastWriteTime(node)
-              const dateToUse = staleAttribute === 'created' ? getNodeCreationTime(node) : staleAttribute === 'lastAccess' ? getNodeLastAccessTime(node) : lastWriteTime
+              const dateToUse = getNodeDateForStaleAttribute(node, staleAttribute)
               const stale = ageInDays(dateToUse) >= staleDays
               const containsStaleDescendant = node.type === 'directory' && !stale && (staleDescendantMap.get(node.path) ?? false)
               const large = node.sizeBytes >= minSizeMb * MB
               const selectionState = selectionStateMap.get(node.path) ?? 'none'
               const selected = selectionState === 'all'
               const partial = selectionState === 'partial'
+              let staleMarkerState = ''
+              if (stale) {
+                staleMarkerState = 'active'
+              } else if (containsStaleDescendant) {
+                staleMarkerState = 'contains'
+              }
 
               return (
                 <div className="tree-row" key={node.path}>
                   <span className="marker-stack" aria-hidden="true">
                     <span className={`marker-cell marker-large ${large ? 'active' : ''}`} />
-                    <span className={`marker-cell marker-stale ${stale ? 'active' : containsStaleDescendant ? 'contains' : ''}`} />
+                    <span className={`marker-cell marker-stale ${staleMarkerState}`} />
                   </span>
                   <div className="name-cell" style={{ paddingLeft: `${depth * 1.15}rem` }}>
                     <input

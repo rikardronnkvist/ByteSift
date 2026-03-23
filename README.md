@@ -157,4 +157,4 @@ npm run build
 
 # License
 
-MIT License - Feel free to use and modify!
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

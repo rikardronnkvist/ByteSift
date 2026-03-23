@@ -17,7 +17,8 @@ It includes:
 
 ## Workflow
 
-![Workflow](./README-images/workflow.png?raw=true)
+[![Workflow](./README-images/workflow.png)](./README-images/workflow.png?raw=true)
+
 
 - Target a folder with the `bs-scanner.ps1` script
 - Import JSON file to web front
@@ -100,4 +101,4 @@ pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swed
 
 ## Screenshot
 
-![Screenshot](./README-images/screenshot.png?raw=true)
+[![Workflow](./README-images/screenshot.png)](./README-images/worscreenshotkflow.png?raw=true)

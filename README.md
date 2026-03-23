@@ -2,6 +2,8 @@
 
 ByteSift is an open-source toolkit for finding large and stale files before they become storage debt.
 
+Demo site: https://rikardronnkvist.github.io/ByteSift/
+
 It includes:
 - A React + Vite + TypeScript web app for interactive tree analysis
 - PowerShell scanner script that generates input JSON

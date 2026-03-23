@@ -17,7 +17,7 @@ It includes:
 
 ## Workflow
 
-[![Workflow](README-images/workflow.png)](README-images/workflow.png)
+[![Workflow](references/workflow.png)](references/workflow.png)
 
 - Target a folder with the PowerShell scanner - `bs-scanner.ps1`
 - Import JSON file to web front
@@ -44,7 +44,7 @@ Demo site: https://rikardronnkvist.github.io/ByteSift/
 
 ## Screenshot
 
-[![Screenshot](README-images/screenshot.png)](README-images/screenshot.png)
+[![Screenshot](references/screenshot.png)](references/screenshot.png)
 
 # Scanner Scripts
 

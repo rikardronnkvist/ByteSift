@@ -18,6 +18,9 @@ Relative paths are resolved from the current working directory.
 Optional folder exclusion patterns. Patterns are matched against folder name,
 absolute path, and root-relative path using PowerShell `-like` wildcard matching.
 
+.PARAMETER NoCompress
+Writes indented JSON instead of compact JSON.
+
 .EXAMPLE
 pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root"
 
@@ -28,6 +31,11 @@ pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root" -ExcludeFolder "node_modules
 
 Scans while skipping matching folders.
 
+.EXAMPLE
+pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root" -NoCompress
+
+Scans and writes indented JSON output.
+
 .NOTES
 Use `-Verbose` to print excluded folder skip messages.
 #>
@@ -36,7 +44,8 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$Root,
   [string]$Output,
-  [string[]]$ExcludeFolder = @()
+  [string[]]$ExcludeFolder = @(),
+  [switch]$NoCompress
 )
 
 Set-StrictMode -Version Latest
@@ -206,5 +215,13 @@ if (-not (Test-Path -LiteralPath $outputDir)) {
   New-Item -ItemType Directory -Path $outputDir | Out-Null
 }
 
-$report | ConvertTo-Json -Depth 100 | Set-Content -LiteralPath $outputFile -Encoding UTF8
+$json = if ($NoCompress) {
+  $report | ConvertTo-Json -Depth 100
+}
+else {
+  $report | ConvertTo-Json -Depth 100 -Compress
+}
+
+$json | Set-Content -LiteralPath $outputFile -Encoding UTF8
 Write-Host "Wrote scan report: $outputFile"
+

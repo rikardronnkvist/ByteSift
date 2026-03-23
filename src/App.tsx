@@ -45,6 +45,7 @@ const MB = 1024 * 1024
 const MAX_STALE_DAYS = 365
 const IS_DEV = import.meta.env.DEV
 const MAX_UPLOAD_SIZE_MB = 1024
+const MAX_BROWSER_PARSE_SIZE_MB = 500
 const MAX_SCAN_NODE_DEPTH = 512
 const MAX_SCAN_NODE_COUNT = 500000
 const MAX_CHILDREN_PER_NODE = 50000
@@ -392,6 +393,76 @@ const validateInput = (payload: unknown):
   return { ok: true, value: candidate as ScanInput }
 }
 
+const parseJsonFromBuffer = (buffer: ArrayBuffer): unknown => {
+  const bytes = new Uint8Array(buffer)
+
+  const decode = (encoding: 'utf-8' | 'utf-16le' | 'utf-16be', source: Uint8Array): string =>
+    new TextDecoder(encoding).decode(source).replace(/^\uFEFF/, '')
+
+  const startsLikeJson = (text: string): boolean => {
+    const trimmed = text.trimStart()
+    return trimmed.startsWith('{') || trimmed.startsWith('[')
+  }
+
+  const parseDecoded = (text: string): unknown => JSON.parse(text) as unknown
+
+  // BOM-based decoding is the most reliable signal and should be authoritative.
+  if (bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+    return parseDecoded(decode('utf-8', bytes.subarray(3)))
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xfe) {
+    return parseDecoded(decode('utf-16le', bytes.subarray(2)))
+  }
+  if (bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff) {
+    return parseDecoded(decode('utf-16be', bytes.subarray(2)))
+  }
+
+  // Heuristic for UTF-16 without BOM based on null-byte distribution in first chunk.
+  const sample = bytes.subarray(0, Math.min(bytes.length, 4096))
+  let evenNulls = 0
+  let oddNulls = 0
+  for (let i = 0; i < sample.length; i += 1) {
+    if (sample[i] !== 0) {
+      continue
+    }
+    if (i % 2 === 0) {
+      evenNulls += 1
+    } else {
+      oddNulls += 1
+    }
+  }
+
+  const nullThreshold = Math.max(8, Math.floor(sample.length * 0.1))
+  const likelyUtf16Le = oddNulls >= nullThreshold && oddNulls > evenNulls * 2
+  const likelyUtf16Be = evenNulls >= nullThreshold && evenNulls > oddNulls * 2
+
+  const encodingsToTry: Array<'utf-8' | 'utf-16le' | 'utf-16be'> = likelyUtf16Le
+    ? ['utf-16le', 'utf-8', 'utf-16be']
+    : likelyUtf16Be
+      ? ['utf-16be', 'utf-8', 'utf-16le']
+      : ['utf-8', 'utf-16le', 'utf-16be']
+
+  let firstParseError: unknown = null
+  let lastError: unknown = null
+
+  for (const encoding of encodingsToTry) {
+    try {
+      const decoded = decode(encoding, bytes)
+      if (!startsLikeJson(decoded)) {
+        continue
+      }
+      return parseDecoded(decoded)
+    } catch (error) {
+      if (!firstParseError) {
+        firstParseError = error
+      }
+      lastError = error
+    }
+  }
+
+  throw (firstParseError ?? lastError ?? new Error('Unable to parse JSON from file buffer.'))
+}
+
 function App() {
   const [scanInput, setScanInput] = useState<ScanInput | null>(null)
   const [error, setError] = useState<string>('')
@@ -438,13 +509,24 @@ function App() {
       return
     }
 
+    // Browser JSON parsing requires creating a very large JS string.
+    // Extremely large files can fail with parsing errors despite valid JSON.
+    if (file.size > MAX_BROWSER_PARSE_SIZE_MB * MB) {
+      setError(
+        `JSON file is too large for browser parsing. File size: ${formatBytes(file.size)}, safe limit: ${MAX_BROWSER_PARSE_SIZE_MB} MB. ` +
+          'Use scanner exclusions to reduce output size and scan in chunks.',
+      )
+      event.target.value = ''
+      return
+    }
+
     try {
-      const text = await file.text()
-      const normalized = text.replace(/^\uFEFF/, '')
-      const parsed = JSON.parse(normalized) as unknown
+      const buffer = await file.arrayBuffer()
+      const parsed = parseJsonFromBuffer(buffer)
       loadInput(parsed)
-    } catch {
-      setError('Could not parse JSON file. Check that it is valid UTF-8 JSON.')
+    } catch (error) {
+      const details = error instanceof Error ? ` (${error.message})` : ''
+      setError(`Could not parse JSON file. Ensure it is valid JSON (UTF-8 or UTF-16).${details}`)
     } finally {
       // Reset so selecting the same file again still triggers onChange.
       event.target.value = ''

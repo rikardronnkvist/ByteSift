@@ -17,7 +17,7 @@ It includes:
 
 ## Workflow
 
-[![Workflow](./README-images/workflow.png)](./README-images/workflow.png?raw=true)
+[![Workflow](./blob/main/README-images/workflow.png)](./blob/main/README-images/workflow.png)
 
 
 - Target a folder with the `bs-scanner.ps1` script
@@ -101,4 +101,4 @@ pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swed
 
 ## Screenshot
 
-[![Workflow](./README-images/screenshot.png)](./README-images/worscreenshotkflow.png?raw=true)
+[![Screenshot](./blob/main/README-images/screenshot.png)](./blob/main/README-images/screenshot.png)

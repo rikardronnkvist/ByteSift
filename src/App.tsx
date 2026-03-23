@@ -310,6 +310,174 @@ type ValidationResult =
   | { ok: true }
   | { ok: false; error: string }
 
+type SupportedEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
+
+type RowRenderState = {
+  childrenCount: number
+  isExpandable: boolean
+  isExpanded: boolean
+  lastWriteTime: string
+  dateToUse: string
+  ageDays: number
+  stale: boolean
+  containsStaleDescendant: boolean
+  large: boolean
+  selectionState: SelectionState
+  selected: boolean
+  partial: boolean
+  staleMarkerState: '' | 'active' | 'contains'
+  staleMarkerTitle: string | undefined
+  largeMarkerTitle: string | undefined
+}
+
+const getBoundaryValidationResult = (depth: number, nodeCount: number): ValidationResult => {
+  if (depth > MAX_SCAN_NODE_DEPTH) {
+    return {
+      ok: false,
+      error: `JSON tree is too deep. Tree depth: ${depth}, maximum: ${MAX_SCAN_NODE_DEPTH}.`,
+    }
+  }
+
+  if (nodeCount > MAX_SCAN_NODE_COUNT) {
+    return {
+      ok: false,
+      error: `JSON tree is too large. Node count: ${nodeCount}, maximum: ${MAX_SCAN_NODE_COUNT}.`,
+    }
+  }
+
+  return { ok: true }
+}
+
+const getSchemaValidationResult = (candidate: Partial<ScanNode>): ValidationResult => {
+  if (!validateRequiredNodeFields(candidate) || !validateOptionalTimestamps(candidate)) {
+    return { ok: false, error: 'Invalid JSON format: one or more nodes have missing or invalid fields.' }
+  }
+
+  return { ok: true }
+}
+
+const getChildrenValidationResult = (children: unknown): ValidationResult => {
+  if (!Array.isArray(children)) {
+    return { ok: false, error: 'Invalid JSON format: `children` must be an array when present.' }
+  }
+
+  if (children.length > MAX_CHILDREN_PER_NODE) {
+    return {
+      ok: false,
+      error: `A directory has too many children. Directory children: ${children.length}, maximum: ${MAX_CHILDREN_PER_NODE}.`,
+    }
+  }
+
+  return { ok: true }
+}
+
+const getEncodingOrder = (likelyUtf16Le: boolean, likelyUtf16Be: boolean): SupportedEncoding[] => {
+  if (likelyUtf16Le) {
+    return ['utf-16le', 'utf-8', 'utf-16be']
+  }
+  if (likelyUtf16Be) {
+    return ['utf-16be', 'utf-8', 'utf-16le']
+  }
+  return ['utf-8', 'utf-16le', 'utf-16be']
+}
+
+const getStaleMarkerDetails = (
+  stale: boolean,
+  containsStaleDescendant: boolean,
+  staleDays: number,
+): Pick<RowRenderState, 'staleMarkerState' | 'staleMarkerTitle'> => {
+  if (stale) {
+    return {
+      staleMarkerState: 'active',
+      staleMarkerTitle: `Stale - Older than ${staleDays} days`,
+    }
+  }
+
+  if (containsStaleDescendant) {
+    return {
+      staleMarkerState: 'contains',
+      staleMarkerTitle: 'Stale - Contains old files or folders',
+    }
+  }
+
+  return {
+    staleMarkerState: '',
+    staleMarkerTitle: undefined,
+  }
+}
+
+const getLargeMarkerTitle = (large: boolean, minSizeMb: number): string | undefined => {
+  if (!large) {
+    return undefined
+  }
+
+  return `Large - Over ${formatBytes(minSizeMb * MB)}`
+}
+
+const getSortComparator = (sortBy: SortColumn) => {
+  const comparators: Record<SortColumn, (a: ScanNode, b: ScanNode) => number> = {
+    name: (a, b) => a.name.localeCompare(b.name),
+    size: (a, b) => a.sizeBytes - b.sizeBytes,
+    created: (a, b) =>
+      new Date(getNodeCreationTime(a)).getTime() - new Date(getNodeCreationTime(b)).getTime(),
+    accessed: (a, b) =>
+      new Date(getNodeLastAccessTime(a)).getTime() - new Date(getNodeLastAccessTime(b)).getTime(),
+    written: (a, b) =>
+      new Date(getNodeLastWriteTime(a)).getTime() - new Date(getNodeLastWriteTime(b)).getTime(),
+    age: (a, b) => ageInDays(getNodeLastWriteTime(a)) - ageInDays(getNodeLastWriteTime(b)),
+  }
+
+  return comparators[sortBy]
+}
+
+const getRowRenderState = (
+  node: ScanNode,
+  staleAttribute: StaleAttribute,
+  staleDays: number,
+  staleDescendantMap: Map<string, boolean>,
+  minSizeMb: number,
+  selectionStateMap: Map<string, SelectionState>,
+  expandedPaths: Set<string>,
+): RowRenderState => {
+  const childrenCount = node.children?.length ?? 0
+  const isExpandable = node.type === 'directory' && childrenCount > 0
+  const isExpanded = expandedPaths.has(node.path)
+  const lastWriteTime = getNodeLastWriteTime(node)
+  const dateToUse = getNodeDateForStaleAttribute(node, staleAttribute)
+  const ageDays = ageInDays(dateToUse)
+  const stale = ageDays >= staleDays
+  const containsStaleDescendant =
+    node.type === 'directory' && !stale && (staleDescendantMap.get(node.path) ?? false)
+  const large = node.sizeBytes >= minSizeMb * MB
+  const selectionState = selectionStateMap.get(node.path) ?? 'none'
+  const selected = selectionState === 'all'
+  const partial = selectionState === 'partial'
+
+  const { staleMarkerState, staleMarkerTitle } = getStaleMarkerDetails(
+    stale,
+    containsStaleDescendant,
+    staleDays,
+  )
+
+  return {
+    childrenCount,
+    isExpandable,
+    isExpanded,
+    lastWriteTime,
+    dateToUse,
+    ageDays,
+    stale,
+    containsStaleDescendant,
+    large,
+    selectionState,
+    selected,
+    partial,
+    staleMarkerState,
+    staleMarkerTitle,
+    largeMarkerTitle: getLargeMarkerTitle(large, minSizeMb),
+  }
+}
+
 const validateNodeTree = (node: unknown): ValidationResult => {
   if (!isRecord(node)) {
     return { ok: false, error: 'Invalid JSON format: `node` must be an object.' }
@@ -325,24 +493,17 @@ const validateNodeTree = (node: unknown): ValidationResult => {
       return { ok: false, error: 'Invalid JSON format: every node must be an object.' }
     }
 
-    if (current.depth > MAX_SCAN_NODE_DEPTH) {
-      return {
-        ok: false,
-        error: `JSON tree is too deep. Tree depth: ${current.depth}, maximum: ${MAX_SCAN_NODE_DEPTH}.`,
-      }
+    const nextNodeCount = nodeCount + 1
+    const boundaryValidation = getBoundaryValidationResult(current.depth, nextNodeCount)
+    if (!boundaryValidation.ok) {
+      return boundaryValidation
     }
-
-    nodeCount += 1
-    if (nodeCount > MAX_SCAN_NODE_COUNT) {
-      return {
-        ok: false,
-        error: `JSON tree is too large. Node count: ${nodeCount}, maximum: ${MAX_SCAN_NODE_COUNT}.`,
-      }
-    }
+    nodeCount = nextNodeCount
 
     const candidate = current.node as Partial<ScanNode>
-    if (!validateRequiredNodeFields(candidate) || !validateOptionalTimestamps(candidate)) {
-      return { ok: false, error: 'Invalid JSON format: one or more nodes have missing or invalid fields.' }
+    const schemaValidation = getSchemaValidationResult(candidate)
+    if (!schemaValidation.ok) {
+      return schemaValidation
     }
 
     const children = candidate.children
@@ -350,15 +511,9 @@ const validateNodeTree = (node: unknown): ValidationResult => {
       continue
     }
 
-    if (!Array.isArray(children)) {
-      return { ok: false, error: 'Invalid JSON format: `children` must be an array when present.' }
-    }
-
-    if (children.length > MAX_CHILDREN_PER_NODE) {
-      return {
-        ok: false,
-        error: `A directory has too many children. Directory children: ${children.length}, maximum: ${MAX_CHILDREN_PER_NODE}.`,
-      }
+    const childrenValidation = getChildrenValidationResult(children)
+    if (!childrenValidation.ok) {
+      return childrenValidation
     }
 
     for (let index = children.length - 1; index >= 0; index -= 1) {
@@ -396,7 +551,7 @@ const validateInput = (payload: unknown):
 const parseJsonFromBuffer = (buffer: ArrayBuffer): unknown => {
   const bytes = new Uint8Array(buffer)
 
-  const decode = (encoding: 'utf-8' | 'utf-16le' | 'utf-16be', source: Uint8Array): string =>
+  const decode = (encoding: SupportedEncoding, source: Uint8Array): string =>
     new TextDecoder(encoding).decode(source).replace(/^\uFEFF/, '')
 
   const startsLikeJson = (text: string): boolean => {
@@ -436,11 +591,7 @@ const parseJsonFromBuffer = (buffer: ArrayBuffer): unknown => {
   const likelyUtf16Le = oddNulls >= nullThreshold && oddNulls > evenNulls * 2
   const likelyUtf16Be = evenNulls >= nullThreshold && evenNulls > oddNulls * 2
 
-  const encodingsToTry: Array<'utf-8' | 'utf-16le' | 'utf-16be'> = likelyUtf16Le
-    ? ['utf-16le', 'utf-8', 'utf-16be']
-    : likelyUtf16Be
-      ? ['utf-16be', 'utf-8', 'utf-16le']
-      : ['utf-8', 'utf-16le', 'utf-16be']
+  const encodingsToTry = getEncodingOrder(likelyUtf16Le, likelyUtf16Be)
 
   let firstParseError: unknown = null
   let lastError: unknown = null
@@ -575,6 +726,8 @@ function App() {
       return null
     }
 
+    const sortComparator = getSortComparator(sortBy)
+
     const sortChildren = (node: ScanNode): ScanNode => {
       if (node.type !== 'directory') {
         return node
@@ -582,25 +735,7 @@ function App() {
 
       const children = [...(node.children ?? [])].map(sortChildren)
       children.sort((a, b) => {
-        let compare = 0
-        if (sortBy === 'name') {
-          compare = a.name.localeCompare(b.name)
-        } else if (sortBy === 'size') {
-          compare = a.sizeBytes - b.sizeBytes
-        } else if (sortBy === 'created') {
-          compare =
-            new Date(getNodeCreationTime(a)).getTime() - new Date(getNodeCreationTime(b)).getTime()
-        } else if (sortBy === 'accessed') {
-          compare =
-            new Date(getNodeLastAccessTime(a)).getTime() -
-            new Date(getNodeLastAccessTime(b)).getTime()
-        } else if (sortBy === 'written') {
-          compare =
-            new Date(getNodeLastWriteTime(a)).getTime() -
-            new Date(getNodeLastWriteTime(b)).getTime()
-        } else {
-          compare = ageInDays(getNodeLastWriteTime(a)) - ageInDays(getNodeLastWriteTime(b))
-        }
+        const compare = sortComparator(a, b)
         return sortDirection === 'asc' ? compare : -compare
       })
 
@@ -982,61 +1117,57 @@ function App() {
             </p>
           ) : (
             visibleRows.map(({ node, depth }) => {
-              const childrenCount = node.children?.length ?? 0
-              const isExpandable = node.type === 'directory' && childrenCount > 0
-              const isExpanded = expandedPaths.has(node.path)
-              const lastWriteTime = getNodeLastWriteTime(node)
-              const dateToUse = getNodeDateForStaleAttribute(node, staleAttribute)
-              const stale = ageInDays(dateToUse) >= staleDays
-              const containsStaleDescendant = node.type === 'directory' && !stale && (staleDescendantMap.get(node.path) ?? false)
-              const large = node.sizeBytes >= minSizeMb * MB
-              const selectionState = selectionStateMap.get(node.path) ?? 'none'
-              const selected = selectionState === 'all'
-              const partial = selectionState === 'partial'
-              let staleMarkerState = ''
-              let staleMarkerTitle: string | undefined
-              if (stale) {
-                staleMarkerState = 'active'
-                staleMarkerTitle = `Stale - Older than ${staleDays} days`
-              } else if (containsStaleDescendant) {
-                staleMarkerState = 'contains'
-                staleMarkerTitle = 'Stale - Contains old files or folders'
-              }
-              const largeMarkerTitle = large ? `Large - Over ${formatBytes(minSizeMb * MB)}` : undefined
+              const rowState = getRowRenderState(
+                node,
+                staleAttribute,
+                staleDays,
+                staleDescendantMap,
+                minSizeMb,
+                selectionStateMap,
+                expandedPaths,
+              )
+
+              const largeMarkerClassName = rowState.large
+                ? 'marker-cell marker-large active'
+                : 'marker-cell marker-large'
+              const staleMarkerClassName = `marker-cell marker-stale ${rowState.staleMarkerState}`
+              const checkboxClassName = rowState.partial
+                ? 'node-checkbox partial'
+                : 'node-checkbox'
 
               return (
                 <div className="tree-row" key={node.path}>
                   <span className="marker-stack" aria-hidden="true">
                     <span
-                      className={`marker-cell marker-large ${large ? 'active' : ''}`}
-                      title={largeMarkerTitle}
+                      className={largeMarkerClassName}
+                      title={rowState.largeMarkerTitle}
                     />
                     <span
-                      className={`marker-cell marker-stale ${staleMarkerState}`}
-                      title={staleMarkerTitle}
+                      className={staleMarkerClassName}
+                      title={rowState.staleMarkerTitle}
                     />
                   </span>
                   <div className="name-cell" style={{ paddingLeft: `${depth * 1.15}rem` }}>
                     <input
                       type="checkbox"
-                      className={`node-checkbox ${partial ? 'partial' : ''}`}
-                      checked={selected}
+                      className={checkboxClassName}
+                      checked={rowState.selected}
                       onChange={() => toggleSelected(node.path)}
                       ref={(element) => {
                         if (element) {
-                          element.indeterminate = partial
+                          element.indeterminate = rowState.partial
                         }
                       }}
                       aria-label={`Select ${node.path}`}
                     />
-                    {isExpandable ? (
+                    {rowState.isExpandable ? (
                       <button
                         type="button"
                         className="toggle"
                         onClick={() => toggleExpanded(node.path)}
                         aria-label={`Toggle ${node.path}`}
                       >
-                        {isExpanded ? '▾' : '▸'}
+                        {rowState.isExpanded ? '▾' : '▸'}
                       </button>
                     ) : (
                       <span className="toggle-placeholder" />
@@ -1048,8 +1179,8 @@ function App() {
                   <span>{formatBytes(node.sizeBytes)}</span>
                   <span>{formatDisplayDate(getNodeCreationTime(node))}</span>
                   <span>{formatDisplayDate(getNodeLastAccessTime(node))}</span>
-                  <span>{formatDisplayDate(lastWriteTime)}</span>
-                  <span>{ageInDays(dateToUse)} days</span>
+                  <span>{formatDisplayDate(rowState.lastWriteTime)}</span>
+                  <span>{rowState.ageDays} days</span>
                 </div>
               )
             })

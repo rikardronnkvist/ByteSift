@@ -104,8 +104,8 @@ This web app is a static React/Vite SPA and can be hosted in IIS.
 
 Requirements:
 - IIS with Static Content enabled
-- URL Rewrite Module installed
-- Node.js 20+ and npm on build machine
+- [URL Rewrite Module](https://www.iis.net/downloads/microsoft/url-rewrite) installed
+- [Node.js](https://nodejs.org/en/download) 20+ and npm on build machine
 
 Build the app:
 
@@ -114,39 +114,15 @@ npm install
 npm run build
 ```
 
+The build output already includes `web.config` from `public/web.config`.
+
 Publish the `dist/` folder to your IIS site physical path.
 
-For SPA route fallback, add `web.config` in the deployed site root (same level as `index.html`):
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<configuration>
-	<system.webServer>
-		<rewrite>
-			<rules>
-				<rule name="SPA Fallback" stopProcessing="true">
-					<match url=".*" />
-					<conditions logicalGrouping="MatchAll">
-						<add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-						<add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
-					</conditions>
-					<action type="Rewrite" url="/index.html" />
-				</rule>
-			</rules>
-		</rewrite>
-		<staticContent>
-			<remove fileExtension=".json" />
-			<mimeMap fileExtension=".json" mimeType="application/json" />
-			<remove fileExtension=".webmanifest" />
-			<mimeMap fileExtension=".webmanifest" mimeType="application/manifest+json" />
-		</staticContent>
-	</system.webServer>
-</configuration>
-```
+The bundled IIS config lives in [public/web.config](public/web.config) and is copied to `dist/web.config` during build.
 
 Notes:
 - If IIS site is hosted under a virtual directory (not `/`), set Vite `base` in `vite.config.ts` before build.
-- If you want `web.config` copied automatically on build, place it in `public/web.config`.
+- `npm run build` produces a deployable `dist/` folder that already contains `web.config`.
 - If IIS already defines a MIME type for `.json` or `.webmanifest`, use the `remove` entries above or omit the duplicate mapping.
 
 ## Screenshot

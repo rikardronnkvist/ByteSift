@@ -465,6 +465,7 @@ const parseJsonFromBuffer = (buffer: ArrayBuffer): unknown => {
 
 function App() {
   const [scanInput, setScanInput] = useState<ScanInput | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
   const [staleDays, setStaleDays] = useState(180)
   const [staleAttribute, setStaleAttribute] = useState<StaleAttribute>('lastWrite')
@@ -474,6 +475,18 @@ function App() {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set<string>())
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set<string>())
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const prepareLoadingState = () => {
+    setScanInput(null)
+    setExpandedPaths(new Set<string>())
+    setSelectedPaths(new Set<string>())
+    setError('')
+  }
+
+  const waitForNextPaint = async () =>
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve())
+    })
 
   const loadInput = (payload: unknown) => {
     const validation = validateInput(payload)
@@ -520,6 +533,10 @@ function App() {
       return
     }
 
+    prepareLoadingState()
+    setIsLoading(true)
+    await waitForNextPaint()
+
     try {
       const buffer = await file.arrayBuffer()
       const parsed = parseJsonFromBuffer(buffer)
@@ -528,12 +545,17 @@ function App() {
       const details = error instanceof Error ? ` (${error.message})` : ''
       setError(`Could not parse JSON file. Ensure it is valid JSON (UTF-8 or UTF-16).${details}`)
     } finally {
+      setIsLoading(false)
       // Reset so selecting the same file again still triggers onChange.
       event.target.value = ''
     }
   }
 
   const handleLoadSample = async () => {
+    prepareLoadingState()
+    setIsLoading(true)
+    await waitForNextPaint()
+
     try {
       const response = await fetch(`${import.meta.env.BASE_URL}sample-input.json`)
       if (!response.ok) {
@@ -543,6 +565,8 @@ function App() {
       loadInput(parsed)
     } catch {
       setError('Unable to load sample-input.json from /public.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -811,13 +835,13 @@ function App() {
             cleanup plan for archive or deletion scripts.
           </p>
           <div className="hero-actions">
-            <button type="button" onClick={() => fileInputRef.current?.click()}>
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
               Load JSON
             </button>
             <button
               type="button"
               onClick={exportSelection}
-              disabled={recommendedItems.length === 0}
+              disabled={recommendedItems.length === 0 || isLoading}
             >
               Export JSON ({recommendedItems.length})
             </button>
@@ -829,7 +853,7 @@ function App() {
               hidden
             />
             {IS_DEV ? (
-              <button type="button" onClick={handleLoadSample} className="secondary">
+              <button type="button" onClick={handleLoadSample} className="secondary" disabled={isLoading}>
                 Load Sample
               </button>
             ) : null}
@@ -945,7 +969,12 @@ function App() {
           </button>
         </div>
         <div className="tree-body">
-          {visibleRows.length === 0 ? (
+          {isLoading ? (
+            <div className="tree-loading" role="status" aria-live="polite">
+              <span className="spinner" aria-hidden="true" />
+              <span>Loading JSON...</span>
+            </div>
+          ) : visibleRows.length === 0 ? (
             <p className="empty">
               {scanInput
                 ? 'No nodes are visible at this level. Try expanding directories.'

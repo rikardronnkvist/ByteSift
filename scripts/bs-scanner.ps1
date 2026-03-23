@@ -156,7 +156,7 @@ function Get-Node {
   return $node
 }
 
-$resolvedRoot = (Resolve-Path -Path $Root).Path
+$resolvedRoot = (Resolve-Path -Path $Root).ProviderPath
 
 Write-Host "Scanning root: $resolvedRoot"
 

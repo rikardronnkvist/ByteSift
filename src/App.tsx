@@ -45,9 +45,9 @@ const MB = 1024 * 1024
 const MAX_STALE_DAYS = 365
 const IS_DEV = import.meta.env.DEV
 const MAX_UPLOAD_SIZE_MB = 1024
-const MAX_SCAN_NODE_DEPTH = 128
-const MAX_SCAN_NODE_COUNT = 20000
-const MAX_CHILDREN_PER_NODE = 2000
+const MAX_SCAN_NODE_DEPTH = 512
+const MAX_SCAN_NODE_COUNT = 500000
+const MAX_CHILDREN_PER_NODE = 50000
 
 const roundDownToLeadingMagnitude = (value: number): number => {
   if (value <= 0) {
@@ -305,9 +305,13 @@ const validateOptionalTimestamps = (candidate: Partial<ScanNode>): boolean => {
   return true
 }
 
-const validateNodeTree = (node: unknown): node is ScanNode => {
+type ValidationResult =
+  | { ok: true }
+  | { ok: false; error: string }
+
+const validateNodeTree = (node: unknown): ValidationResult => {
   if (!isRecord(node)) {
-    return false
+    return { ok: false, error: 'Invalid JSON format: `node` must be an object.' }
   }
 
   const stack: Array<{ node: unknown; depth: number }> = [{ node, depth: 0 }]
@@ -316,18 +320,28 @@ const validateNodeTree = (node: unknown): node is ScanNode => {
   while (stack.length > 0) {
     const current = stack.pop()!
 
-    if (!isRecord(current.node) || current.depth > MAX_SCAN_NODE_DEPTH) {
-      return false
+    if (!isRecord(current.node)) {
+      return { ok: false, error: 'Invalid JSON format: every node must be an object.' }
+    }
+
+    if (current.depth > MAX_SCAN_NODE_DEPTH) {
+      return {
+        ok: false,
+        error: `JSON tree is too deep. Tree depth: ${current.depth}, maximum: ${MAX_SCAN_NODE_DEPTH}.`,
+      }
     }
 
     nodeCount += 1
     if (nodeCount > MAX_SCAN_NODE_COUNT) {
-      return false
+      return {
+        ok: false,
+        error: `JSON tree is too large. Node count: ${nodeCount}, maximum: ${MAX_SCAN_NODE_COUNT}.`,
+      }
     }
 
     const candidate = current.node as Partial<ScanNode>
     if (!validateRequiredNodeFields(candidate) || !validateOptionalTimestamps(candidate)) {
-      return false
+      return { ok: false, error: 'Invalid JSON format: one or more nodes have missing or invalid fields.' }
     }
 
     const children = candidate.children
@@ -335,8 +349,15 @@ const validateNodeTree = (node: unknown): node is ScanNode => {
       continue
     }
 
-    if (!Array.isArray(children) || children.length > MAX_CHILDREN_PER_NODE) {
-      return false
+    if (!Array.isArray(children)) {
+      return { ok: false, error: 'Invalid JSON format: `children` must be an array when present.' }
+    }
+
+    if (children.length > MAX_CHILDREN_PER_NODE) {
+      return {
+        ok: false,
+        error: `A directory has too many children. Directory children: ${children.length}, maximum: ${MAX_CHILDREN_PER_NODE}.`,
+      }
     }
 
     for (let index = children.length - 1; index >= 0; index -= 1) {
@@ -344,19 +365,31 @@ const validateNodeTree = (node: unknown): node is ScanNode => {
     }
   }
 
-  return true
+  return { ok: true }
 }
 
-const validateInput = (payload: unknown): payload is ScanInput => {
+const validateInput = (payload: unknown):
+  | { ok: true; value: ScanInput }
+  | { ok: false; error: string } => {
   if (!isRecord(payload)) {
-    return false
+    return { ok: false, error: 'Invalid JSON format: root document must be an object.' }
   }
   const candidate = payload as Partial<ScanInput>
-  return (
-    typeof candidate.rootPath === 'string' &&
-    typeof candidate.generatedAt === 'string' &&
-    validateNodeTree(candidate.node)
-  )
+
+  if (typeof candidate.rootPath !== 'string') {
+    return { ok: false, error: 'Invalid JSON format: `rootPath` must be a string.' }
+  }
+
+  if (typeof candidate.generatedAt !== 'string') {
+    return { ok: false, error: 'Invalid JSON format: `generatedAt` must be a string.' }
+  }
+
+  const treeValidation = validateNodeTree(candidate.node)
+  if (!treeValidation.ok) {
+    return treeValidation
+  }
+
+  return { ok: true, value: candidate as ScanInput }
 }
 
 function App() {
@@ -372,11 +405,13 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const loadInput = (payload: unknown) => {
-    if (!validateInput(payload)) {
-      setError('Invalid JSON format or file is too complex to process safely.')
+    const validation = validateInput(payload)
+    if (!validation.ok) {
+      setError(validation.error)
       return
     }
-    const typed = payload
+
+    const typed = validation.value
     const { maxAgeDays } = getMaxNodeMetrics(typed.node)
     const maxSizeBytes = getMaxDescendantSizeBytes(typed.node)
     const suggestedMinSizeMb = roundDownToLeadingMagnitude((maxSizeBytes / MB) * 0.75)

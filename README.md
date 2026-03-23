@@ -2,8 +2,6 @@
 
 ByteSift is an open-source toolkit for finding large and stale files before they become storage debt.
 
-Demo site: https://rikardronnkvist.github.io/ByteSift/
-
 It includes:
 - A React + Vite + TypeScript web app for interactive tree analysis
 - PowerShell scanner script that generates input JSON
@@ -21,11 +19,11 @@ It includes:
 
 [![Workflow](README-images/workflow.png)](README-images/workflow.png)
 
-- Target a folder with the `bs-scanner.ps1` script
+- Target a folder with the PowerShell scanner - `bs-scanner.ps1`
 - Import JSON file to web front
 - Mark stale and large files
-- Export JSON
-- Target exported JSON with `bs-archive.ps1`
+- Export JSON from web front
+- Target exported JSON with the archive/delete script - `bs-archive.ps1`
 - Delete or archive files and folders
 
 
@@ -40,22 +38,17 @@ It includes:
 - `scripts/bs-archive.ps1`: PowerShell archive/delete executor
 - `scripts/bs-deploy-webapp.ps1`: Azure deployment helper
 
-## Local Web App
+# Demo
 
-Requirements:
-- Node.js 20+ (Node.js 22 recommended)
-- npm
+Demo site: https://rikardronnkvist.github.io/ByteSift/
 
-Install and run:
+## Screenshot
 
-```bash
-npm install
-npm run dev
-```
+[![Screenshot](README-images/screenshot.png)](README-images/screenshot.png)
 
-## Scanner Scripts
+# Scanner Scripts
 
-### PowerShell scanner
+## PowerShell scanner
 
 ```powershell
 pwsh ./scripts/bs-scanner.ps1 -Root "/path/to/root"
@@ -89,6 +82,22 @@ pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Delete -Report "./bytesift-r
 pwsh ./scripts/bs-archive.ps1 -Input "output.json" -Archive -DryRun
 ```
 
+# Deployment
+
+## Local Web App for development
+
+Requirements:
+- Node.js 20+ (Node.js 22 recommended)
+- npm
+
+Install and run:
+
+```bash
+npm install
+npm run dev
+```
+
+
 ## Deploy Web App To Azure
 
 Requirements:
@@ -121,7 +130,7 @@ Notes:
 - The sample loader uses `import.meta.env.BASE_URL`, so `sample-input.json` resolves correctly under the repository subpath on Pages.
 - If you fork or rename the repository, update `VITE_BASE_PATH` in the workflow to match the new repo path.
 
-## Deploy Web App To On-Prem IIS
+## Deploy Web App To IIS
 
 This web app is a static React/Vite SPA and can be hosted in IIS.
 
@@ -137,17 +146,15 @@ npm install
 npm run build
 ```
 
-The build output already includes `web.config` from `public/web.config`.
+- The build output already includes `web.config` from `public/web.config`.
+- Publish the `dist/` folder to your IIS site physical path.
+- The bundled IIS config lives in [public/web.config](public/web.config) and is copied to `dist/web.config` during build.
 
-Publish the `dist/` folder to your IIS site physical path.
-
-The bundled IIS config lives in [public/web.config](public/web.config) and is copied to `dist/web.config` during build.
-
-Notes:
+**Notes:**
 - If IIS site is hosted under a virtual directory (not `/`), set Vite `base` in `vite.config.ts` before build.
 - `npm run build` produces a deployable `dist/` folder that already contains `web.config`.
 - If IIS already defines a MIME type for `.json` or `.webmanifest`, use the `remove` entries above or omit the duplicate mapping.
 
-## Screenshot
+# License
 
-[![Screenshot](README-images/screenshot.png)](README-images/screenshot.png)
+MIT License - Feel free to use and modify!

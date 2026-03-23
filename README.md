@@ -98,6 +98,54 @@ Deploy to Azure Storage static website:
 pwsh ./scripts/bs-deploy-webapp.ps1 -ResourceGroup "rg-bytesift" -Location "swedencentral" -StorageAccount "stbytesift"
 ```
 
+## Deploy Web App To On-Prem IIS
+
+This web app is a static React/Vite SPA and can be hosted in IIS.
+
+Requirements:
+- IIS with Static Content enabled
+- URL Rewrite Module installed
+- Node.js 20+ and npm on build machine
+
+Build the app:
+
+```bash
+npm install
+npm run build
+```
+
+Publish the `dist/` folder to your IIS site physical path.
+
+For SPA route fallback, add `web.config` in the deployed site root (same level as `index.html`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+	<system.webServer>
+		<rewrite>
+			<rules>
+				<rule name="SPA Fallback" stopProcessing="true">
+					<match url=".*" />
+					<conditions logicalGrouping="MatchAll">
+						<add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+						<add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+					</conditions>
+					<action type="Rewrite" url="/index.html" />
+				</rule>
+			</rules>
+		</rewrite>
+		<staticContent>
+			<mimeMap fileExtension=".json" mimeType="application/json" />
+			<mimeMap fileExtension=".webmanifest" mimeType="application/manifest+json" />
+		</staticContent>
+	</system.webServer>
+</configuration>
+```
+
+Notes:
+- If IIS site is hosted under a virtual directory (not `/`), set Vite `base` in `vite.config.ts` before build.
+- If you want `web.config` copied automatically on build, place it in `public/web.config`.
+
 ## Screenshot
 
 [![Screenshot](README-images/screenshot.png)](README-images/screenshot.png)

@@ -209,6 +209,16 @@ const flattenVisibleRows = (
   return rows
 }
 
+const flattenVisibleRootRows = (roots: ScanNode[], expandedPaths: Set<string>): Row[] => {
+  const rows: Row[] = []
+
+  for (const root of roots) {
+    rows.push(...flattenVisibleRows(root, expandedPaths, 0))
+  }
+
+  return rows
+}
+
 const findNodeByPath = (node: ScanNode, targetPath: string): ScanNode | null => {
   const stack: ScanNode[] = [node]
 
@@ -804,7 +814,8 @@ function App() {
       return [] as Row[]
     }
 
-    return flattenVisibleRows(sortedRoot, expandedPaths)
+    const topLevelRoots = sortedRoot.children?.length ? sortedRoot.children : [sortedRoot]
+    return flattenVisibleRootRows(topLevelRoots, expandedPaths)
   }, [sortedRoot, expandedPaths])
 
   const totalNodeCount = useMemo(() => {
@@ -1001,9 +1012,11 @@ function App() {
     }
 
     const pathsToSelect = new Set<string>()
-    const stack: Array<{ node: ScanNode; inheritedSelection: boolean }> = [
-      { node: sortedRoot, inheritedSelection: false },
-    ]
+    const topLevelRoots = sortedRoot.children?.length ? sortedRoot.children : [sortedRoot]
+    const stack: Array<{ node: ScanNode; inheritedSelection: boolean }> = topLevelRoots.map((node) => ({
+      node,
+      inheritedSelection: false,
+    }))
 
     while (stack.length > 0) {
       const current = stack.pop()

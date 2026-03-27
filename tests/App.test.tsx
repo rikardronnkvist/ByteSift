@@ -72,11 +72,10 @@ describe('App', () => {
     expect(screen.getByRole('option', { name: 'Last Access' })).toBeInTheDocument()
   })
 
-  it('shows stale marker tooltip for folders containing old descendants', async () => {
+  it('shows stale marker tooltip for stale rows', async () => {
     const { container } = render(<App />)
     await uploadScan(container)
 
-    expect(screen.getByTitle('Stale - Contains old files or folders')).toBeInTheDocument()
     expect(screen.getByTitle(/Stale - Older than \d+ days/)).toBeInTheDocument()
     expect(screen.getAllByTitle(/Large - Over/).length).toBeGreaterThan(0)
   })
@@ -107,27 +106,21 @@ describe('App', () => {
     expect(nameSortButton.textContent).toContain('▼')
   })
 
-  it('supports expand/collapse and selection toggling', async () => {
+  it('hides root row and supports selection toggling', async () => {
     const { container } = render(<App />)
     await uploadScan(container)
 
     expect(screen.getByText('old-data.bin')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Select /root')).not.toBeInTheDocument()
 
-    const toggleRoot = screen.getByRole('button', { name: 'Toggle /root' })
-    fireEvent.click(toggleRoot)
-    expect(screen.queryByText('old-data.bin')).not.toBeInTheDocument()
-
-    fireEvent.click(toggleRoot)
-    expect(screen.getByText('old-data.bin')).toBeInTheDocument()
-
-    const rootCheckbox = screen.getByLabelText('Select /root')
+    const childCheckbox = screen.getByLabelText('Select /root/old-data.bin')
     const exportButton = screen.getByRole('button', { name: /export json/i })
     expect(exportButton).toBeDisabled()
 
-    fireEvent.click(rootCheckbox)
+    fireEvent.click(childCheckbox)
     expect(exportButton).not.toBeDisabled()
 
-    fireEvent.click(rootCheckbox)
+    fireEvent.click(childCheckbox)
     expect(exportButton).toBeDisabled()
   })
 
@@ -135,28 +128,23 @@ describe('App', () => {
     const { container } = render(<App />)
     await uploadScan(container)
 
-    const rootCheckbox = screen.getByLabelText('Select /root') as HTMLInputElement
     const childCheckbox = screen.getByLabelText('Select /root/old-data.bin') as HTMLInputElement
     const exportButton = screen.getByRole('button', { name: /export json/i })
     const minSizeInput = screen.getByLabelText(/min size/i)
 
-    expect(rootCheckbox.checked).toBe(false)
+    expect(screen.queryByLabelText('Select /root')).not.toBeInTheDocument()
     expect(childCheckbox.checked).toBe(false)
     expect(exportButton).toBeDisabled()
 
-    fireEvent.change(minSizeInput, { target: { value: '2500' } })
+    fireEvent.change(minSizeInput, { target: { value: '1500' } })
     fireEvent.click(screen.getByRole('button', { name: /select large/i }))
-    expect(rootCheckbox.checked).toBe(false)
-    expect(rootCheckbox.className).toContain('partial')
-    expect(childCheckbox.checked).toBe(false)
-    expect(exportButton).toBeDisabled()
+    expect(childCheckbox.checked).toBe(true)
+    expect(exportButton).not.toBeDisabled()
 
-    fireEvent.click(rootCheckbox)
-    fireEvent.click(rootCheckbox)
+    fireEvent.click(childCheckbox)
     expect(exportButton).toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: /select stale/i }))
-    expect(rootCheckbox.checked).toBe(false)
     expect(childCheckbox.checked).toBe(true)
     expect(exportButton).not.toBeDisabled()
   })

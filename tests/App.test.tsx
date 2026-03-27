@@ -131,6 +131,36 @@ describe('App', () => {
     expect(exportButton).toBeDisabled()
   })
 
+  it('selects marked nodes with Select large and Select stale actions', async () => {
+    const { container } = render(<App />)
+    await uploadScan(container)
+
+    const rootCheckbox = screen.getByLabelText('Select /root') as HTMLInputElement
+    const childCheckbox = screen.getByLabelText('Select /root/old-data.bin') as HTMLInputElement
+    const exportButton = screen.getByRole('button', { name: /export json/i })
+    const minSizeInput = screen.getByLabelText(/min size/i)
+
+    expect(rootCheckbox.checked).toBe(false)
+    expect(childCheckbox.checked).toBe(false)
+    expect(exportButton).toBeDisabled()
+
+    fireEvent.change(minSizeInput, { target: { value: '2500' } })
+    fireEvent.click(screen.getByRole('button', { name: /select large/i }))
+    expect(rootCheckbox.checked).toBe(false)
+    expect(rootCheckbox.className).toContain('partial')
+    expect(childCheckbox.checked).toBe(false)
+    expect(exportButton).toBeDisabled()
+
+    fireEvent.click(rootCheckbox)
+    fireEvent.click(rootCheckbox)
+    expect(exportButton).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: /select stale/i }))
+    expect(rootCheckbox.checked).toBe(false)
+    expect(childCheckbox.checked).toBe(true)
+    expect(exportButton).not.toBeDisabled()
+  })
+
   it('loads sample data and supports all sort headers', async () => {
     const fetchMock = vi
       .spyOn(globalThis, 'fetch')

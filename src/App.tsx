@@ -42,7 +42,7 @@ type SortColumn = 'size' | 'name' | 'created' | 'accessed' | 'written' | 'age'
 type StaleAttribute = 'lastWrite' | 'created' | 'lastAccess'
 
 const MB = 1024 * 1024
-const MAX_STALE_DAYS = 365
+const MAX_DEFAULT_STALE_DAYS = 365
 const MAX_UPLOAD_SIZE_MB = 1024
 const MAX_BROWSER_PARSE_SIZE_MB = 500
 const MAX_SCAN_NODE_DEPTH = 512
@@ -676,7 +676,7 @@ function App() {
     const rootExpanded = new Set<string>([typed.node.path])
     setScanInput(typed)
     setMinSizeMb(Math.max(0, suggestedMinSizeMb))
-    setStaleDays(Math.min(MAX_STALE_DAYS, Math.max(0, suggestedStaleDays)))
+    setStaleDays(Math.min(MAX_DEFAULT_STALE_DAYS, Math.max(0, suggestedStaleDays)))
     setStaleAttribute('lastWrite')
     setExpandedPaths(rootExpanded)
     setSelectedPaths(new Set<string>())
@@ -960,6 +960,64 @@ function App() {
     })
   }
 
+  const selectMarkedNodes = (
+    predicate: (node: ScanNode) => boolean,
+    options: { includeDescendants: boolean },
+  ) => {
+    if (!sortedRoot) {
+      return
+    }
+
+    const pathsToSelect = new Set<string>()
+    const stack: Array<{ node: ScanNode; inheritedSelection: boolean }> = [
+      { node: sortedRoot, inheritedSelection: false },
+    ]
+
+    while (stack.length > 0) {
+      const current = stack.pop()
+      if (!current) {
+        continue
+      }
+
+      const nodeMatches = predicate(current.node)
+      const shouldSelect = current.inheritedSelection || nodeMatches
+      if (shouldSelect) {
+        pathsToSelect.add(current.node.path)
+      }
+
+      const inheritedSelection =
+        options.includeDescendants && (current.inheritedSelection || nodeMatches)
+      for (const child of current.node.children ?? []) {
+        stack.push({ node: child, inheritedSelection })
+      }
+    }
+
+    if (pathsToSelect.size === 0) {
+      return
+    }
+
+    setSelectedPaths((current) => {
+      const next = new Set(current)
+      for (const path of pathsToSelect) {
+        next.add(path)
+      }
+      return next
+    })
+  }
+
+  const handleSelectLarge = () => {
+    selectMarkedNodes((node) => node.sizeBytes >= minSizeMb * MB, {
+      includeDescendants: false,
+    })
+  }
+
+  const handleSelectStale = () => {
+    selectMarkedNodes(
+      (node) => ageInDays(getNodeDateForStaleAttribute(node, staleAttribute)) >= staleDays,
+      { includeDescendants: true },
+    )
+  }
+
   const handleSortClick = (column: SortColumn) => {
     if (sortBy === column) {
       setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
@@ -1099,6 +1157,12 @@ function App() {
             <button type="button" onClick={handleLoadSample} className="secondary" disabled={isLoading}>
               Load Sample
             </button>
+            <button type="button" onClick={handleSelectLarge} disabled={!sortedRoot || isLoading}>
+              Select large
+            </button>
+            <button type="button" onClick={handleSelectStale} disabled={!sortedRoot || isLoading}>
+              Select stale
+            </button>
           </div>
         </div>
         <div className="hero-logo-wrap" aria-hidden="true">
@@ -1138,11 +1202,10 @@ function App() {
               type="number"
               value={staleDays}
               min={0}
-              max={MAX_STALE_DAYS}
               onChange={(event) => {
                 const value = Number(event.target.value)
                 const normalized = Number.isFinite(value) && value >= 0 ? value : 0
-                setStaleDays(Math.min(MAX_STALE_DAYS, normalized))
+                setStaleDays(normalized)
               }}
               style={{ flex: 1 }}
             />

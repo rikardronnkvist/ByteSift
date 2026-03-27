@@ -82,6 +82,38 @@ const ageInDays = (dateIso: string): number => {
   return Math.max(0, Math.floor((now - modified) / (1000 * 60 * 60 * 24)))
 }
 
+const formatAge = (days: number): string => {
+  if (days <= 0) {
+    return 'today'
+  }
+
+  const units = [
+    { label: 'y', value: 365 },
+    { label: 'mo', value: 30 },
+    { label: 'w', value: 7 },
+    { label: 'd', value: 1 },
+  ]
+
+  let remaining = days
+  const parts: string[] = []
+
+  for (const unit of units) {
+    if (parts.length >= 2) {
+      break
+    }
+
+    const count = Math.floor(remaining / unit.value)
+    if (count <= 0) {
+      continue
+    }
+
+    parts.push(`${count}${unit.label}`)
+    remaining -= count * unit.value
+  }
+
+  return parts.join(' ')
+}
+
 const getNodeLastWriteTime = (node: ScanNode): string => node.LastWriteTime ?? node.modifiedAt
 const getNodeCreationTime = (node: ScanNode): string => node.CreationTime ?? node.modifiedAt
 const getNodeLastAccessTime = (node: ScanNode): string => node.LastAccessTime ?? node.modifiedAt
@@ -1116,7 +1148,7 @@ function App() {
           <span>{formatDisplayDate(getNodeCreationTime(node))}</span>
           <span>{formatDisplayDate(getNodeLastAccessTime(node))}</span>
           <span>{formatDisplayDate(rowState.lastWriteTime)}</span>
-          <span>{rowState.ageDays} days</span>
+          <span>{formatAge(rowState.ageDays)}</span>
         </div>
       )
     })

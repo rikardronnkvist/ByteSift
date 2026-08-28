@@ -18,6 +18,7 @@ It includes:
 ## Workflow
 
 [![Workflow](references/workflow.png)](references/workflow.png)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Frikardronnkvist%2FByteSift.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Frikardronnkvist%2FByteSift?ref=badge_shield)
 
 - Target a folder with the PowerShell scanner - `bs-scanner.ps1`
 - Import JSON file to web front
@@ -158,3 +159,6 @@ npm run build
 # License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Frikardronnkvist%2FByteSift.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Frikardronnkvist%2FByteSift?ref=badge_large)
